@@ -1,0 +1,4 @@
+#!/bin/sh
+version=classic
+PATH=$PATH:~
+PS1="classic> "
