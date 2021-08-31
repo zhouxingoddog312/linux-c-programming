@@ -1,0 +1,1 @@
+In this chapter we will be looking at files and directories and how      to manipulate them, We will learn how to create files.
