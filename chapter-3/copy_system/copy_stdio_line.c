@@ -9,8 +9,7 @@ int main(void)
 	in=fopen("file.in","r");
 	out=fopen("file.out","w");
 	while((nread=getline(&line,&n,in))>0)
-		printf("nread=%d\n",nread);
-		//fwrite(line,sizeof(char),nread,out);
+		fwrite(line,sizeof(char),nread,out);
 	free(line);
 	exit(0);
 }

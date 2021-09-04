@@ -20,11 +20,14 @@ copy_stdio:FORCE
 	@cd copy_system;$(CC) $@.c -o $@;sh createinputfile.sh;TIMEFORMAT="" time ./$@;echo;$(RM) ./$@ ./file.in ./file.out
 copy_stdio_block:FORCE
 	@cd copy_system;$(CC) $@.c -o $@;sh createinputfile.sh;TIMEFORMAT="" time ./$@;echo;$(RM) ./$@ ./file.in ./file.out
+copy_stdio_line:FORCE
+	@cd copy_system;$(CC) $@.c -o $@;sh createinputfile.sh;TIMEFORMAT="" time ./$@;echo;$(RM) ./$@ ./file.in ./file.out
 printdir:FORCE
 	$(run-test)
 	./$@ "/home"
 	@$(RM) ./$@
+test_mmap:
 .PHONY:clean FORCE
 
 clean:
-	$(RM) a.out
+	$(RM) a.out test_mmap records.dat
