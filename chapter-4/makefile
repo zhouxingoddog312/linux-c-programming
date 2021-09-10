@@ -1,5 +1,5 @@
 .PHONY:all clean FORCE
-object=args argopt longopt environ showenv envtime gmtime localtime ctime strftime tmpnam
+object=args argopt longopt environ showenv envtime gmtime localtime ctime strftime tmpnam user hostget
 all:$(object)
 
 args:args.c FORCE
@@ -40,6 +40,12 @@ strftime:strftime.c FORCE
 	./$@
 tmpnam:tmpnam.c FORCE
 	@$(CC) $< -o $@ 2>/dev/null
+	./$@
+user:user.c
+	@$(CC) $< -o $@
+	./$@
+hostget:hostget.c
+	@$(CC) $< -o $@
 	./$@
 clean:
 	$(RM) $(object)
