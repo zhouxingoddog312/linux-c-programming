@@ -1,5 +1,5 @@
 .PHONY:all clean FORCE
-object=args argopt longopt environ showenv envtime gmtime localtime ctime strftime tmpnam user hostget
+object=args argopt longopt environ showenv envtime gmtime localtime ctime strftime tmpnam user hostget syslog logmask
 all:$(object)
 
 args:args.c FORCE
@@ -41,11 +41,19 @@ strftime:strftime.c FORCE
 tmpnam:tmpnam.c FORCE
 	@$(CC) $< -o $@ 2>/dev/null
 	./$@
-user:user.c
+user:user.c FORCE
 	@$(CC) $< -o $@
 	./$@
-hostget:hostget.c
+hostget:hostget.c FORCE
 	@$(CC) $< -o $@
 	./$@
+syslog:syslog.c FORCE
+	@$(CC) $< -o $@
+	./$@
+	tail -n 1 /var/log/syslog
+logmask:logmask.c
+	@$(CC) $< -o $@
+	./$@
+	tail -n 4 /var/log/syslog
 clean:
 	$(RM) $(object)
