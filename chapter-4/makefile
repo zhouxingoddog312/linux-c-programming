@@ -1,5 +1,6 @@
 .PHONY:all clean FORCE
-object=args argopt longopt environ showenv envtime gmtime localtime ctime strftime tmpnam user hostget syslog logmask
+LDFLAGS=-lm
+object=args argopt longopt environ showenv envtime gmtime localtime ctime strftime tmpnam user hostget syslog logmask limits
 all:$(object)
 
 args:args.c FORCE
@@ -51,9 +52,14 @@ syslog:syslog.c FORCE
 	@$(CC) $< -o $@
 	./$@
 	tail -n 1 /var/log/syslog
-logmask:logmask.c
+logmask:logmask.c FORCE
 	@$(CC) $< -o $@
 	./$@
 	tail -n 4 /var/log/syslog
+limits:limits.c FORCE
+	@$(CC) $< -o $@ $(LDFLAGS)
+	--./$@
+	@echo
+	--nice ./$@
 clean:
 	$(RM) $(object)
