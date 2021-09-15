@@ -1,5 +1,4 @@
 all:
-
 define run-test
 @$(CC) $@.c -o $@
 endef
@@ -28,6 +27,5 @@ printdir:FORCE
 	@$(RM) ./$@
 test_mmap:
 .PHONY:clean FORCE
-
 clean:
 	$(RM) a.out test_mmap records.dat

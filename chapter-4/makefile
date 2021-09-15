@@ -1,8 +1,10 @@
 .PHONY:all clean FORCE
 LDFLAGS=-lm
 object=args argopt longopt environ showenv envtime gmtime localtime ctime strftime tmpnam user hostget syslog logmask limits
-all:$(object)
-
+all:
+	for ob in $(object);\
+	do $(CC) $${ob}".c" -o $${ob} $(LDFLAGS) 2>/dev/null;\
+	done
 args:args.c FORCE
 	@$(CC) $< -o $@
 	./$@ -i -lr 'hi there' -f fred.c
