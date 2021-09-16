@@ -1,6 +1,6 @@
 .PHONY:all clean FORCE
 LDFLAGS=-lcurses
-object=menu1 menu2 menu3 menu4 password badterm sizeterm
+object=menu1 menu2 menu3 menu4 menu5 password badterm sizeterm
 all:
 	for ob in $(object);\
 	do \
@@ -32,6 +32,9 @@ badterm:badterm.c FORCE
 	@$(CC) $< -o $@ $(LDFLAGS)
 	@./$@
 sizeterm:sizeterm.c FORCE
+	@$(CC) $< -o $@ $(LDFLAGS)
+	@./$@
+menu5:menu5.c FORCE
 	@$(CC) $< -o $@ $(LDFLAGS)
 	@./$@
 clean:
