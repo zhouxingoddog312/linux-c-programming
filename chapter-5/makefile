@@ -1,8 +1,14 @@
 .PHONY:all clean FORCE
-object=menu1 menu2 menu3 password
+LDFLAGS=-lcurses
+object=menu1 menu2 menu3 menu4 password badterm sizeterm
 all:
 	for ob in $(object);\
-	do $(CC) $${ob}".c" -o $${ob};\
+	do \
+		if [ $${ob} = "badterm" ] || [ $${ob} = "sizeterm" ];then\
+	       		$(CC) $${ob}".c" -o $${ob} $(LDFLAGS);\
+		else\
+	       		$(CC) $${ob}".c" -o $${ob};\
+		fi \
 	done
 menu1:menu1.c FORCE
 	@$(CC) $< -o $@
@@ -18,6 +24,15 @@ menu3:menu3.c FORCE
 	@$(RM) test
 password:password.c FORCE
 	@$(CC) $< -o $@
+	@./$@
+menu4:menu4.c FORCE
+	@$(CC) $< -o $@
+	@./$@
+badterm:badterm.c FORCE
+	@$(CC) $< -o $@ $(LDFLAGS)
+	@./$@
+sizeterm:sizeterm.c FORCE
+	@$(CC) $< -o $@ $(LDFLAGS)
 	@./$@
 clean:
 	$(RM) $(object)
