@@ -1,5 +1,5 @@
 .PHONY:clean all FORCE
-object=screen1 moveadd ipmode
+object=screen1 moveadd ipmode multiw1
 LDFLAGS=-lncurses
 all:
 
@@ -10,6 +10,9 @@ moveadd:moveadd.c FORCE
 	$(CC) $< -o $@ $(LDFLAGS)
 	./$@
 ipmode:ipmode.c FORCE
+	$(CC) $< -o $@ $(LDFLAGS)
+	./$@
+multiw1:multiw1.c FORCE
 	$(CC) $< -o $@ $(LDFLAGS)
 	./$@
 
