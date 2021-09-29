@@ -150,7 +150,7 @@ void draw_menu(char *options[],int current_highlight,int start_row,int start_col
 		if(current_row==current_highlight)
 			attron(A_STANDOUT);
 		txt_ptr=options[current_row];
-		txt_ptr++;
+		//txt_ptr++;
 		//txt_ptr=*option_ptr;
 		mvprintw(start_row+current_row,start_col,"%s",txt_ptr);
 		if(current_row==current_highlight)
@@ -175,7 +175,7 @@ void add_record(void)
 	char cd_title[MAX_STRING];
 	char cd_type[MAX_STRING];
 	char cd_artist[MAX_STRING];
-	char cd_entry[MAX_STRING];
+	char cd_entry[MAX_ENTRY];
 	int screenrow=MESSAGE_LINE;
 	int screencol=10;
 	clear_all_screen();
@@ -256,7 +256,7 @@ void update_cd(void)
 	WINDOW *sub_window_ptr;
 	clear_all_screen();
 	mvprintw(PROMPT_LINE,0,"Re-entering tracks for CD. ");
-	if(!getfirm())
+	if(!get_confirm())
 		return;
 	move(PROMPT_LINE,0);
 	clrtoeol();
@@ -275,10 +275,10 @@ void update_cd(void)
 	touchwin(stdscr);
 	do
 	{
-		mvprintw(sub_window_ptr,screen_line++,BOX_ROW_POS+2,"Track %d: ",track);
+		mvwprintw(sub_window_ptr,screen_line++,BOX_ROW_POS+2,"Track %d: ",track);
 		clrtoeol();
 		refresh();
-		wgetnstr(sub_window_ptr,track_name,MAX_STRINGS);
+		wgetnstr(sub_window_ptr,track_name,MAX_STRING);
 		len=strlen(track_name);
 		if(len>0&&track_name[len-1]=='\n')
 			track_name[len-1]='\0';
@@ -304,5 +304,177 @@ void remove_cd(void)
 	if(current_cd[0]=='\0')
 		return;
 	clear_all_screen();
-	mvprintw(PROMPT_LINE,0,)
+	mvprintw(PROMPT_LINE,0,"About to remove CD %s: %s. ",current_cat,current_cd);
+	if(!get_confirm())
+		return;
+	cat_length=strlen(current_cat);
+	titles_fp=fopen(title_file,"r");
+	temp_fp=fopen(temp_file,"w");
+	while(fgets(entry,MAX_ENTRY,titles_fp))
+	{
+		if(strncmp(current_cat,entry,cat_length)!=0)
+			fputs(entry,temp_fp);
+	}
+	fclose(titles_fp);
+	fclose(temp_fp);
+	unlink(title_file);
+	rename(temp_file,title_file);
+	remove_tracks();
+	current_cd[0]='\0';
+}
+void remove_tracks(void)
+{
+	FILE *tracks_fp,*temp_fp;
+	char entry[MAX_ENTRY];
+	int cat_length;
+	if(current_cd[0]=='\0')
+		return;
+	cat_length=strlen(current_cat);
+	tracks_fp=fopen(tracks_file,"r");
+	if(tracks_fp==(FILE *)NULL)
+		return;
+	temp_fp=fopen(temp_file,"w");
+	while(fgets(entry,MAX_ENTRY,tracks_fp))
+	{
+		if(strncmp(current_cat,entry,cat_length)!=0)
+			fputs(entry,temp_fp);
+	}
+	fclose(tracks_fp);
+	fclose(temp_fp);
+	unlink(tracks_file);
+	rename(temp_file,tracks_file);
+}
+void count_cds(void)
+{
+	FILE *titles_fp,*tracks_fp;
+	char entry[MAX_ENTRY];
+	int titles=0;
+	int tracks=0;
+	titles_fp=fopen(title_file,"r");
+	if(titles_fp)
+	{
+		while(fgets(entry,MAX_ENTRY,titles_fp))
+			titles++;
+		fclose(titles_fp);
+	}
+	tracks_fp=fopen(tracks_file,"r");
+	if(tracks_fp)
+	{
+		while(fgets(entry,MAX_ENTRY,tracks_fp))
+			tracks++;
+		fclose(tracks_fp);
+	}
+	mvprintw(ERROR_LINE,0,"Database contains %d titles, with a total of %d tracks.",titles,tracks);
+	get_return();
+}
+void find_cd(void)
+{
+	char match[MAX_STRING],entry[MAX_ENTRY];
+	FILE *titles_fp;
+	int count=0;
+	char *found,*title,*catalog;
+	mvprintw(Q_LINE,0,"Enter a string to search for in CD titles: ");
+	get_string(match);
+	titles_fp=fopen(title_file,"r");
+	if(titles_fp)
+	{
+		while(fgets(entry,MAX_ENTRY,titles_fp))
+		{
+			catalog=entry;
+			if(found=strstr(catalog,","))
+			{
+				*found='\0';
+				title=found+1;
+				if(found=strstr(title,","))
+				{
+					*found='\0';
+					if(found=strstr(title,match))
+					{
+						count++;
+						strcpy(current_cd,title);
+						strcpy(current_cat,catalog);
+					}
+				}
+			}
+		}
+		fclose(titles_fp);
+	}
+	if(count!=1)
+	{
+		if(count==0)
+			mvprintw(ERROR_LINE,0,"Sorry, no matching CD found. ");
+		if(count>1)
+			mvprintw(ERROR_LINE,0,"Sorry, match is ambiguous: %d CDs found. ",count);
+		current_cd[0]='\0';
+		get_return();
+	}
+}
+void list_tracks(void)
+{
+	FILE *tracks_fp;
+	char entry[MAX_ENTRY];
+	int cat_length;
+	int lines_op=0;
+	WINDOW *track_pad_ptr;
+	int tracks=0;
+	int key;
+	int first_line=0;
+	if(current_cd[0]=='\0')
+	{
+		mvprintw(ERROR_LINE,0,"You must select a CD first. ");
+		get_return();
+		return;
+	}
+	clear_all_screen();
+	cat_length=strlen(current_cat);
+	tracks_fp=fopen(tracks_file,"r");
+	if(!tracks_fp)
+		return;
+	while(fgets(entry,MAX_ENTRY,tracks_fp))
+		if(strncmp(entry,current_cat,cat_length)==0)
+			tracks++;
+	fclose(tracks_fp);
+	track_pad_ptr=newpad(tracks+BOXED_LINES+1,BOXED_ROWS+1);
+	if(!track_pad_ptr)
+		return;
+	tracks_fp=fopen(tracks_file,"r");
+	if(!tracks_fp)
+		return;
+	mvprintw(4,0,"CD Track Listing\n");
+	while(fgets(entry,MAX_ENTRY,tracks_fp))
+		if(strncmp(entry,current_cat,cat_length)==0)
+			mvwprintw(track_pad_ptr,lines_op++,0,"%s",entry+cat_length+1);
+	fclose(tracks_fp);
+	if(lines_op>BOXED_LINES)
+		mvprintw(MESSAGE_LINE,0,"Cursor keys to scroll, RETURN or q to exit");
+	else
+		mvprintw(MESSAGE_LINE,0,"RETURN or q to exit");
+	wrefresh(stdscr);
+	keypad(stdscr,true);
+	cbreak();
+	noecho();
+	key=0;
+	while(key!='q'&&key!='\n'&&key!=KEY_ENTER)
+	{
+		if(key==KEY_UP)
+			if(first_line>0)
+				first_line--;
+		if(key==KEY_DOWN)
+			if(first_line+BOXED_LINES+1<tracks)
+				first_line++;
+		prefresh(track_pad_ptr,first_line,0,BOX_LINE_POS,BOX_ROW_POS,BOX_LINE_POS+BOXED_LINES,BOX_ROW_POS+BOXED_ROWS);
+		key=getch();
+	}
+	delwin(track_pad_ptr);
+	echo();
+	nocbreak();
+	keypad(stdscr,false);
+}
+void get_return(void)
+{
+	int ch;
+	mvprintw(23,0,"%s"," Press return ");
+	refresh();
+	while(ch=getch()!='\n'&&ch!=EOF)
+		continue;
 }

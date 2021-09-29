@@ -32,4 +32,4 @@ curses_app:curses_app.c FORCE
 	./$@
 
 clean:
-	$(RM) ./a.out $(object)
+	$(RM) ./a.out title.cdb tracks.cdb  $(object)
