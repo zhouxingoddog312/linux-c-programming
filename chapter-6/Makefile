@@ -1,5 +1,5 @@
 .PHONY:clean all FORCE
-object=screen1 moveadd ipmode multiw1 subsc1 keypad color pad
+object=screen1 moveadd ipmode multiw1 subsc1 keypad color pad curses_app
 LDFLAGS=-lncurses
 all:
 
@@ -25,6 +25,9 @@ color:color.c FORCE
 	$(CC) $< -o $@ $(LDFLAGS)
 	./$@
 pad:pad.c FORCE
+	$(CC) $< -o $@ $(LDFLAGS)
+	./$@
+curses_app:curses_app.c FORCE
 	$(CC) $< -o $@ $(LDFLAGS)
 	./$@
 

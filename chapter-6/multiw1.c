@@ -42,7 +42,7 @@ int main(void)
 	wrefresh(new_window_ptr);
 	sleep(2);
 	popup_window_ptr=newwin(10,20,8,8);
-	box(popup_window_ptr,'|','-');
+	box(popup_window_ptr,ACS_VLINE,ACS_HLINE);
 	mvwprintw(popup_window_ptr,5,2,"%s","Pop up window");
 	wrefresh(popup_window_ptr);
 	sleep(2);
