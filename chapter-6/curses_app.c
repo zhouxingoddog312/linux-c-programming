@@ -275,7 +275,8 @@ void update_cd(void)
 	touchwin(stdscr);
 	do
 	{
-		mvwprintw(sub_window_ptr,screen_line++,BOX_ROW_POS+2,"Track %d: ",track);
+		mvwprintw(sub_window_ptr,screen_line,BOX_ROW_POS+2,"Track %d: ",track);
+		screen_line++;
 		clrtoeol();
 		refresh();
 		wgetnstr(sub_window_ptr,track_name,MAX_STRING);
@@ -285,9 +286,10 @@ void update_cd(void)
 		if(*track_name)
 			fprintf(tracks_fp,"%s,%d,%s\n",current_cat,track,track_name);
 		track++;
-		if(screen_line>BOXED_LINES-1)
+		if(screen_line > (BOXED_LINES-2))
 		{
 			scroll(sub_window_ptr);
+			//get_confirm();
 			screen_line--;
 		}
 	}
