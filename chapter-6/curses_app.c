@@ -285,7 +285,7 @@ void update_cd(void)
 		if(*track_name)
 			fprintf(tracks_fp,"%s,%d,%s\n",current_cat,track,track_name);
 		track++;
-		if(screen_line>BOXED_LINES-1)
+		if(screen_line>BOXED_LINES-2)
 		{
 			scroll(sub_window_ptr);
 			screen_line--;
