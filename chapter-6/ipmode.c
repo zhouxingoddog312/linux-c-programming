@@ -26,7 +26,7 @@ int main(void)
 		passwd[i]=getch();
 		if(passwd[i]=='\n')
 			break;
-		move(8,20+i);
+		//move(8,20+i);
 		addch('*');
 		refresh();
 	}
