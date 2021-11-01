@@ -1,5 +1,5 @@
 .PHONY:all clean FORCE
-object=memory1 memory2 memory3 memory4 memory5a memory5b memory6 lock1 lock2 lock3 lock4
+object=memory1 memory2 memory3 memory4 memory5a memory5b memory6 lock1 lock2 lock3 lock4 lock5
 all:
 
 memory1:memory1.c FORCE
@@ -41,13 +41,28 @@ lock2:lock2.c FORCE
 	@$(CC) $< -o $@
 	./$@ & ./$@
 lock3_lock4:lock3.c lock4.c FORCE
-	$(RM) /tmp/test_lock
-	for src in $(filter-out FORCE,$^);\
+	@echo "先对文件进行局部锁定，再测试文件的锁"
+	@$(RM) /tmp/test_lock
+	@for src in $(filter-out FORCE,$^);\
 	do \
 		$(CC) $${src} -o $${src%.*}; \
 	done
-	./lock3 &
-	./lock4
-	$(RM) /tmp/test_lock
+	@./lock3 &
+	@sleep 1
+	@./lock4
+	@$(RM) /tmp/test_lock
+
+lock3_lock5:lock3.c lock5.c FORCE
+	@echo "先对文件进行局部锁定，再尝试对文件设置锁"
+	@$(RM) /tmp/test_lock
+	@for src in $(filter-out FORCE,$^);\
+	do \
+		$(CC) $${src} -o $${src%.*}; \
+	done
+	@./lock3 &
+	@sleep 1
+	@./lock5
+	@$(RM) /tmp/test_lock
+
 clean:
-	$(RM) $(object)
+	$(RM) ./a.out $(object)

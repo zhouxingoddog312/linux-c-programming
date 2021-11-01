@@ -12,7 +12,7 @@ int main(void)
 	struct flock region_2;
 	int res;
 	file_desc=open(test_file,O_RDWR|O_CREAT,0666);
-	if(!file_desc)
+	if(file_desc==-1)
 	{
 		fprintf(stderr,"Unable to open %s for read/write\n",test_file);
 		exit(EXIT_FAILURE);
