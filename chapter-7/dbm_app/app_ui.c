@@ -82,7 +82,7 @@ int main(int argc,char *argv[])
 			case mo_del_tracks:
 				del_track_entries(&current_cdc_entry);
 				break;
-			case count_entries:
+			case mo_count_entries:
 				count_all_entries();
 				break;
 			case mo_exit:
@@ -258,7 +258,7 @@ static void enter_new_track_entries(const cdc_entry *entry_to_add_to)
 			break;
 		}
 		strncpy(new_track.track_txt,tmp_str,TRACK_TTEXT_LEN-1);
-		strcpy(new_track.catalog,entry_to_add_to.catalog);
+		strcpy(new_track.catalog,entry_to_add_to->catalog);
 		new_track.track_no=track_no;
 		if(!add_cdt_entry(new_track))
 		{
@@ -419,7 +419,7 @@ static int command_mode(int argc,char *argv[])
 	int result=EXIT_SUCCESS;
 	char *prog_name=argv[0];
 	extern char *optarg;
-	extern optind,opterr,optopt;
+	extern int optind,opterr,optopt;
 	while((c=getopt(argc,argv,":i"))!=-1)
 	{
 		switch(c)

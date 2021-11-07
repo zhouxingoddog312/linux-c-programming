@@ -1,5 +1,6 @@
 .PHONY:all clean FORCE
-LDFLAGS=-lgdbm_compat
+export INCLUDE=-I/usr/include/gdbm
+export LDFLAGS=-lgdbm_compat
 object=memory1 memory2 memory3 memory4 memory5a memory5b memory6 lock1 lock2 lock3 lock4 lock5 dbm1 dbm2
 all:
 
@@ -66,13 +67,16 @@ lock3_lock5:lock3.c lock5.c FORCE
 	@$(RM) /tmp/test_lock
 dbm1:dbm1.c FORCE
 	@echo "尝试dbm数据库的写入与读取"
-	@$(CC) -I/usr/include/gdbm  $< -o $@  $(LDFLAGS)
+	@$(CC) $(INCLUDE)  $< -o $@  $(LDFLAGS)
 	@./$@
 	@$(RM) /tmp/dbm1_test*
 dbm2:dbm2.c FORCE
 	@echo "尝试dbm数据库的删除与遍历"
-	@$(CC) -I/usr/include/gdbm  $< -o $@  $(LDFLAGS)
+	@$(CC) $(INCLUDE)  $< -o $@  $(LDFLAGS)
 	@./$@
 	@$(RM) /tmp/dbm2_test*
+application:
+	$(MAKE) -C dbm_app
 clean:
 	$(RM) ./a.out $(object)
+	$(MAKE) -C dbm_app clean
