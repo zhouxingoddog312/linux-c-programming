@@ -16,7 +16,7 @@ int main(void)
 	init_keyboard();
 	while(ch!='q')
 	{
-		printf("looping\n");
+		//printf("looping\n");
 		sleep(1);
 		if(kbhit())
 		{
