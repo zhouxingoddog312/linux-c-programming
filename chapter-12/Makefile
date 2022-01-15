@@ -1,10 +1,13 @@
 .PHONY:all clean FORCE
 LDFLAGS=-lpthread
 CPPFLAGS=-D_REENTERANT
-object=thread1 thread2 thread3 thread3a
+object=thread1 thread2 thread3 thread3a thread4 thread5 thread6 thread7 thread8
 
 all:
-
+	for ob in $(object);\
+	do\
+		$(CC) $(CPPFLAGS) $${ob}.c -o $${ob} $(LDFLAGS);\
+	done
 thread1:FORCE
 	@$(CC) $(CPPFLAGS) $@.c -o $@ $(LDFLAGS)
 	@./$@
@@ -18,6 +21,20 @@ thread3:FORCE
 thread3a:FORCE
 	@$(CC) $(CPPFLAGS) $@.c -o $@ $(LDFLAGS)
 	@./$@
-
+thread4:FORCE
+	@$(CC) $(CPPFLAGS) $@.c -o $@ $(LDFLAGS)
+	@./$@
+thread5:FORCE
+	@$(CC) $(CPPFLAGS) $@.c -o $@ $(LDFLAGS)
+	@./$@
+thread6:FORCE
+	@$(CC) $(CPPFLAGS) $@.c -o $@ $(LDFLAGS)
+	@./$@
+thread7:FORCE
+	@$(CC) $(CPPFLAGS) $@.c -o $@ $(LDFLAGS)
+	@./$@
+thread8:FORCE
+	@$(CC) $(CPPFLAGS) $@.c -o $@ $(LDFLAGS)
+	@./$@
 clean:
 	$(RM) ./a.out $(object)
