@@ -1,6 +1,6 @@
 .PHONY:all clean FORCE
 
-object=popen1 popen2 popen3 popen4 pipe1
+object=popen1 popen2 popen3 popen4 pipe1 pipe2 pipe3 pipe4 pipe5
 
 
 all:
@@ -24,6 +24,16 @@ popen4:popen4.c FORCE
 	@echo "命令行输出结果"
 	cat popen*.c|wc -l
 pipe1:pipe1.c FORCE
+	@$(CC) $< -o $@
+	@./$@
+pipe2:pipe2.c FORCE
+	@$(CC) $< -o $@
+	@./$@
+pipe3andpipe4:pipe3 pipe4
+	./$<
+pipe3:
+pipe4:
+pipe5:pipe5.c FORCE
 	@$(CC) $< -o $@
 	@./$@
 clean:
