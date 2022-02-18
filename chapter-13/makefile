@@ -1,6 +1,6 @@
 .PHONY:all clean FORCE
 
-object=popen1 popen2 popen3 popen4 pipe1 pipe2 pipe3 pipe4 pipe5
+object=popen1 popen2 popen3 popen4 pipe1 pipe2 pipe3 pipe4 pipe5 fifo1 fifo2 fifo3 fifo4
 
 
 all:
@@ -36,5 +36,18 @@ pipe4:
 pipe5:pipe5.c FORCE
 	@$(CC) $< -o $@
 	@./$@
+fifo1:fifo1.c FORCE
+	@$(CC) $< -o $@
+	@./$@
+	ls -lF /tmp/my_fifo
+	cat /tmp/my_fifo&
+	echo "Hello World">/tmp/my_fifo
+fifo2:fifo2.c FORCE
+	$(CC) $< -o $@
+fifo3andfifo4:fifo3 fifo4
+	./$(word 1,$^)&
+	time ./$(word 2,$^)
+fifo3:
+fifo4:
 clean:
-	$(RM) ./a.out $(object)
+	$(RM) ./a.out /tmp/my_fifo $(object)
