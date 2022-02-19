@@ -1,6 +1,6 @@
 .PHONY:all clean FORCE
 
-object=popen1 popen2 popen3 popen4 pipe1 pipe2 pipe3 pipe4 pipe5 fifo1 fifo2 fifo3 fifo4
+object=popen1 popen2 popen3 popen4 pipe1 pipe2 pipe3 pipe4 pipe5 fifo1 fifo2 fifo3 fifo4 server client
 
 
 all:
@@ -49,5 +49,13 @@ fifo3andfifo4:fifo3 fifo4
 	time ./$(word 2,$^)
 fifo3:
 fifo4:
+serverandclient:server client
+	./$(word 1,$^)&
+	for((i=0;i<5;i++));\
+	do\
+		./$(word 2,$^)&	\
+	done
+server:
+client:
 clean:
 	$(RM) ./a.out /tmp/my_fifo $(object)
