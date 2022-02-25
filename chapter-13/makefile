@@ -4,7 +4,10 @@ object=popen1 popen2 popen3 popen4 pipe1 pipe2 pipe3 pipe4 pipe5 fifo1 fifo2 fif
 
 
 all:
-
+	for target in $(object);\
+	do\
+		$(CC) $${target}.c -o $${target};\
+	done
 popen1:popen1.c FORCE
 	@$(CC) $< -o $@
 	@./$@
