@@ -277,3 +277,202 @@ int main(void)
 	return 0;
 }
 ```
+###10.14
+```
+[](int a,int b)-> return int{return a+b;}
+```
+###10.15
+```
+[a](int b)-> return int {return a+b;}
+```
+###10.16
+```
+#include <iostream>
+#include <vector>
+#include <string>
+#include <algorithm>
+using namespace std;
+void elimDups(vector<string> &s)
+{
+	sort(s.begin(),s.end());
+	auto end_unique=unique(s.begin(),s.end());
+	s.erase(end_unique,s.end());
+}
+string make_plural(size_t count,const string &word,const string &end)
+{
+	return (count>1)?(word+end):word;
+}
+void biggies(vector<string> &words,vector<string>::size_type sz)
+{
+	elimDups(words);
+	stable_sort(words.begin(),words.end(),[](const string &s1,const string &s2)-> bool {return s1.size()<s2.size();});
+	auto wc=find_if(words.begin(),words.end(),[sz](const string &s)-> bool {return s.size()>=sz;});
+	auto count=words.end()-wc;
+	cout<<count<<" "<<make_plural(count,"word","s")<<" of length "<<sz<<" or longer "<<endl;
+	for_each(wc,words.end(),[](const string &s){cout<<s<<" ";});
+	cout<<endl;
+}
+int main(void)
+{
+	string tmp;
+	vector<string> svec;
+	cout<<"Enter some strings: ";
+	while(cin>>tmp)
+		svec.push_back(tmp);
+	biggies(svec,3);
+	return 0;
+}
+```
+###10.17
+```
+#include <iostream>
+#include <algorithm>
+#include <string>
+#include <vector>
+using namespace std;
+class Sales_data;
+istream &read(istream &is,Sales_data &item);
+class Sales_data
+{
+friend Sales_data add(const Sales_data &lhs,const Sales_data &rhs);
+friend ostream &print(ostream &os,Sales_data &item);
+friend istream &read(istream &is,Sales_data &item);
+private:
+	string bookNo;
+	unsigned units_sold=0;
+	double revenue=0.0;
+	double avg_price() const;
+public:
+	std::string isbn() const  {return bookNo;}
+	Sales_data &combine(const Sales_data &);
+	Sales_data():Sales_data("",0,0){}
+	Sales_data(istream &is):Sales_data(){read(is,*this);}
+	Sales_data(const string &s):Sales_data(s,0,0){}
+	Sales_data(const string &s,unsigned n,double p):bookNo(s),units_sold{n},revenue{n*p}{}
+};
+inline double Sales_data::avg_price() const
+{
+	if(units_sold)
+		return revenue/units_sold;
+	else
+		return 0;
+}
+Sales_data & Sales_data::combine(const Sales_data &rhs)
+{
+	units_sold+=rhs.units_sold;
+	revenue+=rhs.revenue;
+	return *this;
+}
+istream &read(istream &is,Sales_data &item)
+{
+	double price=0;
+	is>>item.bookNo>>item.units_sold>>price;
+	item.revenue=item.units_sold*price;
+	return is;
+}
+ostream &print(ostream &os,Sales_data &item)
+{
+	os<<item.isbn()<<" "<<item.units_sold<<" "<<item.revenue<<" "<<item.avg_price();
+	return os;
+}
+Sales_data add(const Sales_data &lhs,const Sales_data &rhs)
+{
+	Sales_data sum=lhs;
+	sum.combine(rhs);
+	return sum;
+}
+bool compareIsbn(Sales_data &s1,Sales_data &s2)
+{
+	return s1.isbn()<s2.isbn();
+}
+int main(void)
+{
+	Sales_data tmp;
+	vector<Sales_data> Sales_data_vec;
+	while(read(cin,tmp))
+		Sales_data_vec.push_back(tmp);
+	sort(Sales_data_vec.begin(),Sales_data_vec.end(),[](Sales_data &d1,Sales_data&d2)->bool{return d1.isbn()<d2.isbn();});
+	for(auto &t:Sales_data_vec)
+	{
+		print(cout,t);
+		cout<<endl;
+	}
+	return 0;
+}
+```
+###10.18
+```
+#include <iostream>
+#include <vector>
+#include <string>
+#include <algorithm>
+using namespace std;
+void elimDups(vector<string> &s)
+{
+	sort(s.begin(),s.end());
+	auto end_unique=unique(s.begin(),s.end());
+	s.erase(end_unique,s.end());
+}
+string make_plural(size_t count,const string &word,const string &end)
+{
+	return (count>1)?(word+end):word;
+}
+void biggies(vector<string> &words,vector<string>::size_type sz)
+{
+	elimDups(words);
+	stable_sort(words.begin(),words.end(),[](const string &s1,const string &s2)-> bool {return s1.size()<s2.size();});
+	auto wc=partition(words.begin(),words.end(),[sz](const string &s)-> bool {return s.size()<sz;});
+	auto count=words.end()-wc;
+	cout<<count<<" "<<make_plural(count,"word","s")<<" of length "<<sz<<" or longer "<<endl;
+	for_each(wc,words.end(),[](const string &s){cout<<s<<" ";});
+	cout<<endl;
+}
+int main(void)
+{
+	string tmp;
+	vector<string> svec;
+	cout<<"Enter some strings: ";
+	while(cin>>tmp)
+		svec.push_back(tmp);
+	biggies(svec,3);
+	return 0;
+}
+```
+###10.19
+```
+#include <iostream>
+#include <vector>
+#include <string>
+#include <algorithm>
+using namespace std;
+void elimDups(vector<string> &s)
+{
+	sort(s.begin(),s.end());
+	auto end_unique=unique(s.begin(),s.end());
+	s.erase(end_unique,s.end());
+}
+string make_plural(size_t count,const string &word,const string &end)
+{
+	return (count>1)?(word+end):word;
+}
+void biggies(vector<string> &words,vector<string>::size_type sz)
+{
+	elimDups(words);
+	stable_sort(words.begin(),words.end(),[](const string &s1,const string &s2)-> bool {return s1.size()<s2.size();});
+	auto wc=stable_partition(words.begin(),words.end(),[sz](const string &s)-> bool {return s.size()<sz;});
+	auto count=words.end()-wc;
+	cout<<count<<" "<<make_plural(count,"word","s")<<" of length "<<sz<<" or longer "<<endl;
+	for_each(wc,words.end(),[](const string &s){cout<<s<<" ";});
+	cout<<endl;
+}
+int main(void)
+{
+	string tmp;
+	vector<string> svec;
+	cout<<"Enter some strings: ";
+	while(cin>>tmp)
+		svec.push_back(tmp);
+	biggies(svec,3);
+	return 0;
+}
+```
