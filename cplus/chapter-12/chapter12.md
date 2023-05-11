@@ -144,3 +144,563 @@ int型指针可以转换为bool，应该改为`int *p=new (nothrow) int;`这样�
 - `process(shared_ptr<int>(p))`调用合法，但会导致p变为一个空悬指针。操作中利用内置指针p创建一个智能指针临时量赋予形参ptr，在process函数结束时，ptr被销毁，引用计数变为0，其指向的内存会被释放，同时p继续指向（已经释放的）内存。
 ### 12.13
 这样会导致sp变成一个空悬指针，当我们试图使用sp时，将发生未定义的行为，而且当sp被销毁时，它所指向的内存会被第二次delete。
+### 12.14
+```
+#include <iostream>
+#include <memory>
+using namespace std;
+struct destination{};
+struct connection{};
+connection connect(destination *d)
+{
+	cout<<"打开连接"<<endl;
+	return connection();
+}
+void disconnect(connection c)
+{
+	cout<<"关闭连接"<<endl;
+}
+void end_connection(connection *pc)
+{
+	disconnect(*pc);
+}
+void f1(destination &d)
+{
+	cout<<"f1开始"<<endl;
+	connection c=connect(&d);
+	cout<<"f1结束"<<endl;
+}
+void f2(destination &d)
+{
+	cout<<"f2开始"<<endl;
+	connection c=connect(&d);
+	shared_ptr<connection> p(&c,end_connection);
+	cout<<"f2结束"<<endl;
+}
+int main(void)
+{
+	destination d;
+	f1(d);
+	f2(d);
+	return 0;
+}
+```
+### 12.15
+```
+#include <iostream>
+#include <memory>
+using namespace std;
+struct destination{};
+struct connection{};
+connection connect(destination *d)
+{
+	cout<<"打开连接"<<endl;
+	return connection();
+}
+void disconnect(connection c)
+{
+	cout<<"关闭连接"<<endl;
+}
+void f1(destination &d)
+{
+	cout<<"f1开始"<<endl;
+	connection c=connect(&d);
+	cout<<"f1结束"<<endl;
+}
+void f2(destination &d)
+{
+	cout<<"f2开始"<<endl;
+	connection c=connect(&d);
+	shared_ptr<connection> p(&c,[](connection *pc)->void {disconnect(*pc);});
+	cout<<"f2结束"<<endl;
+}
+int main(void)
+{
+	destination d;
+	f1(d);
+	f2(d);
+	return 0;
+}
+```
+### 12.16
+```
+#include <iostream>
+#include <memory>
+using namespace std;
+int main(void)
+{
+	unique_ptr<int> pi(new int(42));
+	unique_ptr<int> pi1(pi);
+	return 0;
+}
+```
+### 12.17
+- 不合法，unique_ptr不能用int初始化
+- 可以通过编译，但是运行时错误，pi不是通过new分配的动态内存，这里又没有重载默认的删除器。所以在p1被销毁时，会调用delete处理pi，发生错误
+- 合法，但是需要小心，p2被销毁时会释放其指向的内存，这样会导致pi2变为空悬指针
+- 可以通过编译，但是运行时错误，因为没有重载默认的删除器。所以在p3被销毁时，会调用delete处理p3指向的内存，而该内存不是由new分配的动态内存，所以会发生错误
+- 合法
+- 合法，但是会产生运行时错误。这是因为两个unique_ptr指向同一个对象，其中一个被销毁时另一个会成为空悬指针。两个都被销毁时，指向的内存会被释放两次
+### 12.18
+unique_ptr的release成员主要用来转移指针的控制权，而shared_ptr只需要普通的赋值或拷贝即可。
+### 12.19
+```
+#include <memory>
+#include <vector>
+#include <string>
+#include <initializer_list>
+#include <stdexcept>
+using namespace std;
+class StrBlobPtr;
+class StrBlob
+{
+friend class StrBlobPtr;
+public:
+	typedef std::vector<std::string>::size_type size_type;
+	StrBlob();
+	StrBlob(std::initializer_list<std::string> il);
+	size_type size() const {return data->size();}
+	bool empty() const {return data->empty();}
+	void push_back(const std::string &t){data->push_back(t);}
+	void pop_back();
+	std::string &front();
+	std::string &back();
+	const std::string &front() const;
+	const std::string &back() const;
+	StrBlobPtr begin();
+	StrBlobPtr end();
+private:
+	std::shared_ptr<std::vector<std::string>> data;
+	void check(size_type i,const std::string &msg) const;
+};
+class StrBlobPtr
+{
+public:
+	StrBlobPtr():curr(0){}
+	StrBlobPtr(StrBlob &a,std::size_t sz=0):wptr(a.data),curr(sz){}
+	std::string &deref() const;
+	StrBlobPtr &incr();
+private:
+	std::shared_ptr<std::vector<std::string>> check(std::size_t,const std::string &) const;
+	std::weak_ptr<std::vector<std::string>> wptr;
+	std::size_t curr=0;
+};
+
+StrBlobPtr StrBlob::begin()
+{
+	return StrBlobPtr(*this);
+}
+StrBlobPtr StrBlob::end()
+{
+	return StrBlobPtr(*this,data->size());
+}
+
+StrBlob::StrBlob():data(make_shared<vector<string>>()){}
+StrBlob::StrBlob(initializer_list<string> il):data(make_shared<vector<string>>(il)){}
+inline void StrBlob::check(size_type i,const string &msg) const
+{
+	if(i>=data->size())
+		throw out_of_range(msg);
+}
+string &StrBlob::front()
+{
+	check(0,"front on empty StrBlob");
+	return data->front();
+}
+string &StrBlob::back()
+{
+	check(0,"back on empty StrBlob");
+	return data->back();
+}
+const std::string &StrBlob::front() const
+{
+	check(0,"front on empty StrBlob");
+	return data->front();
+}
+const std::string &StrBlob::back() const
+{
+	check(0,"back on empty StrBlob");
+	return data->back();
+}
+void StrBlob::pop_back()
+{
+	check(0,"pop_back on empty StrBlob");
+	data->pop_back();
+}
+
+std::shared_ptr<std::vector<std::string>> StrBlobPtr::check(std::size_t i,const std::string &msg) const
+{
+	auto ret=wptr.lock();
+	if(!ret)
+		throw std::runtime_error("unbound StrBlobPtr");
+	if(i>=ret->size())
+		throw std::out_of_range(msg);
+	return ret;
+}
+std::string & StrBlobPtr::deref() const
+{
+	auto p=check(curr,"dereference past end");
+	return (*p)[curr];
+}
+StrBlobPtr & StrBlobPtr::incr()
+{
+	check(curr,"increment past end of StrBlobPtr");
+	++curr;
+	return *this;
+}
+```
+### 12.20
+```
+#include <memory>
+#include <iostream>
+#include <fstream>
+#include <vector>
+#include <string>
+#include <initializer_list>
+#include <stdexcept>
+using namespace std;
+class StrBlobPtr;
+class StrBlob
+{
+friend class StrBlobPtr;
+public:
+	typedef std::vector<std::string>::size_type size_type;
+	StrBlob();
+	StrBlob(std::initializer_list<std::string> il);
+	size_type size() const {return data->size();}
+	bool empty() const {return data->empty();}
+	void push_back(const std::string &t){data->push_back(t);}
+	void pop_back();
+	std::string &front();
+	std::string &back();
+	const std::string &front() const;
+	const std::string &back() const;
+	StrBlobPtr begin();
+	StrBlobPtr end();
+private:
+	std::shared_ptr<std::vector<std::string>> data;
+	void check(size_type i,const std::string &msg) const;
+};
+class StrBlobPtr
+{
+friend bool equal(const StrBlobPtr &lhs,const StrBlobPtr &rhs);
+public:
+	StrBlobPtr():curr(0){}
+	StrBlobPtr(StrBlob &a,std::size_t sz=0):wptr(a.data),curr(sz){}
+	std::string &deref() const;
+	StrBlobPtr &incr();
+private:
+	std::shared_ptr<std::vector<std::string>> check(std::size_t,const std::string &) const;
+	std::weak_ptr<std::vector<std::string>> wptr;
+	std::size_t curr=0;
+};
+
+StrBlobPtr StrBlob::begin()
+{
+	return StrBlobPtr(*this);
+}
+StrBlobPtr StrBlob::end()
+{
+	return StrBlobPtr(*this,data->size());
+}
+
+StrBlob::StrBlob():data(make_shared<vector<string>>()){}
+StrBlob::StrBlob(initializer_list<string> il):data(make_shared<vector<string>>(il)){}
+inline void StrBlob::check(size_type i,const string &msg) const
+{
+	if(i>=data->size())
+		throw out_of_range(msg);
+}
+string &StrBlob::front()
+{
+	check(0,"front on empty StrBlob");
+	return data->front();
+}
+string &StrBlob::back()
+{
+	check(0,"back on empty StrBlob");
+	return data->back();
+}
+const std::string &StrBlob::front() const
+{
+	check(0,"front on empty StrBlob");
+	return data->front();
+}
+const std::string &StrBlob::back() const
+{
+	check(0,"back on empty StrBlob");
+	return data->back();
+}
+void StrBlob::pop_back()
+{
+	check(0,"pop_back on empty StrBlob");
+	data->pop_back();
+}
+
+std::shared_ptr<std::vector<std::string>> StrBlobPtr::check(std::size_t i,const std::string &msg) const
+{
+	auto ret=wptr.lock();
+	if(!ret)
+		throw std::runtime_error("unbound StrBlobPtr");
+	if(i>=ret->size())
+		throw std::out_of_range(msg);
+	return ret;
+}
+std::string & StrBlobPtr::deref() const
+{
+	auto p=check(curr,"dereference past end");
+	return (*p)[curr];
+}
+StrBlobPtr & StrBlobPtr::incr()
+{
+	check(curr,"increment past end of StrBlobPtr");
+	++curr;
+	return *this;
+}
+bool equal(const StrBlobPtr &lhs,const StrBlobPtr &rhs)
+{
+	auto l=lhs.wptr.lock(),r=rhs.wptr.lock();
+	if(l==r)
+	{
+		return (!l||lhs.curr==rhs.curr);
+	}
+	else
+		return false;
+}
+int main(int argc,char *argv[])
+{
+	ifstream in(argv[1]);
+	string tmp;
+	StrBlob store;
+	while(getline(in,tmp))
+		store.push_back(tmp);
+	for(auto p=store.begin();!equal(p,store.end());p.incr())
+		cout<<p.deref()<<endl;
+	return 0;
+}
+```
+### 12.21
+书中的例子，将合法性检查和元素获取分开了，更易读和易修改，但其实两种写法没什么区别。
+### 12.22
+```
+#include <memory>
+#include <iostream>
+#include <fstream>
+#include <vector>
+#include <string>
+#include <initializer_list>
+#include <stdexcept>
+using namespace std;
+class StrBlobPtr;
+class StrBlob
+{
+friend class StrBlobPtr;
+public:
+	typedef std::vector<std::string>::size_type size_type;
+	StrBlob();
+	StrBlob(std::initializer_list<std::string> il);
+	size_type size() const {return data->size();}
+	bool empty() const {return data->empty();}
+	void push_back(const std::string &t){data->push_back(t);}
+	void pop_back();
+	std::string &front();
+	std::string &back();
+	const std::string &front() const;
+	const std::string &back() const;
+	StrBlobPtr begin();
+	StrBlobPtr begin() const;
+	StrBlobPtr end();
+	StrBlobPtr end() const;
+private:
+	std::shared_ptr<std::vector<std::string>> data;
+	void check(size_type i,const std::string &msg) const;
+};
+class StrBlobPtr
+{
+friend bool equal(const StrBlobPtr &lhs,const StrBlobPtr &rhs);
+public:
+	StrBlobPtr():curr(0){}
+	StrBlobPtr(StrBlob &a,std::size_t sz=0):wptr(a.data),curr(sz){}
+	StrBlobPtr(const StrBlob &a,std::size_t sz=0):wptr(a.data),curr(sz){}
+	std::string &deref() const;
+	StrBlobPtr &incr();
+private:
+	std::shared_ptr<std::vector<std::string>> check(std::size_t,const std::string &) const;
+	std::weak_ptr<std::vector<std::string>> wptr;
+	std::size_t curr=0;
+};
+
+StrBlobPtr StrBlob::begin()
+{
+	return StrBlobPtr(*this);
+}
+StrBlobPtr StrBlob::begin() const
+{
+	return StrBlobPtr(*this);
+}
+StrBlobPtr StrBlob::end()
+{
+	return StrBlobPtr(*this,data->size());
+}
+StrBlobPtr StrBlob::end() const
+{
+	return StrBlobPtr(*this,data->size());
+}
+
+StrBlob::StrBlob():data(make_shared<vector<string>>()){}
+StrBlob::StrBlob(initializer_list<string> il):data(make_shared<vector<string>>(il)){}
+inline void StrBlob::check(size_type i,const string &msg) const
+{
+	if(i>=data->size())
+		throw out_of_range(msg);
+}
+string &StrBlob::front()
+{
+	check(0,"front on empty StrBlob");
+	return data->front();
+}
+string &StrBlob::back()
+{
+	check(0,"back on empty StrBlob");
+	return data->back();
+}
+const std::string &StrBlob::front() const
+{
+	check(0,"front on empty StrBlob");
+	return data->front();
+}
+const std::string &StrBlob::back() const
+{
+	check(0,"back on empty StrBlob");
+	return data->back();
+}
+void StrBlob::pop_back()
+{
+	check(0,"pop_back on empty StrBlob");
+	data->pop_back();
+}
+
+std::shared_ptr<std::vector<std::string>> StrBlobPtr::check(std::size_t i,const std::string &msg) const
+{
+	auto ret=wptr.lock();
+	if(!ret)
+		throw std::runtime_error("unbound StrBlobPtr");
+	if(i>=ret->size())
+		throw std::out_of_range(msg);
+	return ret;
+}
+std::string & StrBlobPtr::deref() const
+{
+	auto p=check(curr,"dereference past end");
+	return (*p)[curr];
+}
+StrBlobPtr & StrBlobPtr::incr()
+{
+	check(curr,"increment past end of StrBlobPtr");
+	++curr;
+	return *this;
+}
+bool equal(const StrBlobPtr &lhs,const StrBlobPtr &rhs)
+{
+	auto l=lhs.wptr.lock(),r=rhs.wptr.lock();
+	if(l==r)
+	{
+		return (!l||lhs.curr==rhs.curr);
+	}
+	else
+		return false;
+}
+int main(int argc,char *argv[])
+{
+	ifstream in(argv[1]);
+	string tmp;
+	StrBlob store;
+	while(getline(in,tmp))
+		store.push_back(tmp);
+	for(auto p=store.begin();!equal(p,store.end());p.incr())
+		cout<<p.deref()<<endl;
+	return 0;
+}
+```
+### 12.23
+1.
+```
+#include <iostream>
+#include <cstring>
+using namespace std;
+int main(void)
+{
+	char str1[]="hello";
+	char str2[]="world";
+	size_t arrlen=strlen(str1)+strlen(str2)+2;
+	char *arr=new char[arrlen];
+	strcpy(arr,str1);
+	strcpy(arr+strlen(str1)," ");
+	strcpy(arr+strlen(arr),str2);
+	cout<<arr<<endl;
+	delete [] arr;
+	return 0;
+}
+```
+2.
+```
+#include <iostream>
+#include <string>
+#include <cstring>
+using namespace std;
+int main(void)
+{
+	string str1="hello";
+	string str2="world";
+	size_t arrlen=str1.size()+str2.size()+2;
+	char *arr=new char[arrlen];
+	str1=str1+" "+str2;
+	for(size_t i=0;i!=str1.size();++i)
+		arr[i]=str1[i];
+	cout<<arr<<endl;
+	delete [] arr;
+	return 0;
+}
+```
+### 12.24
+```
+#include <iostream>
+using namespace std;
+int main(void)
+{
+	size_t len;
+	cout<<"How many characters:";
+	cin>>len;
+	char *ps=new char[len+1];
+	cin.ignore();
+	cin.get(ps,len+1);//对于边长输入，只接收其满足字符数组长度的部分，剩余部分留待继续处理
+	cout<<ps;
+	delete [] ps;
+	return 0;
+}
+```
+### 12.25
+`delete [] p`
+### 12.26
+```
+#include <iostream>
+#include <memory>
+#include <string>
+using namespace std;
+int main(void)
+{
+	allocator<string> alloc;
+	string s,*ps=alloc.allocate(5);
+	string *bg=ps;
+	while(cin>>s&&bg!=ps+5)
+		alloc.construct(bg++,s);
+	const size_t size=bg-ps;
+	for(size_t i=0;i!=size;++i)
+	{
+		cout<<ps[i]<<endl;
+		alloc.destroy(ps+i);
+	}
+	alloc.deallocate(ps,5);
+	return 0;
+}
+```
