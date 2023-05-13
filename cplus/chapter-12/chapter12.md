@@ -704,3 +704,225 @@ int main(void)
 	return 0;
 }
 ```
+### 12.27
+>TextQuery.h
+```
+#ifndef TEXT_QUERY_H
+#define TEXT_QUERY_H
+#include <string>
+#include <vector>
+#include <set>
+#include <memory>
+#include <fstream>
+#include "QueryResult.h"
+class TextQuery
+{
+public:
+	using line_no=std::vector<std::string>::size_type;
+	TextQuery(std::ifstream &);
+	QueryResult query(const std::string &) const;
+private:
+	std::shared_ptr<std::vector<std::string>> file;
+	std::map<std::string,std::shared_ptr<std::set<line_no>>> wm;
+};
+#endif
+```
+>TextQuery.cpp
+```
+#include <fstream>
+#include <iostream>
+#include <vector>
+#include <set>
+#include <memory>
+#include "TextQuery.h"
+using namespace std;
+TextQuery::TextQuery(ifstream &infile):file(new vector<string>)
+{
+	string text;
+	while(getline(infile,text))
+	{
+		file->push_back(text);
+		size_t line_number=file->size()-1;
+		istringstream line(text);
+		string word;
+		while(line>>word)
+		{
+			shared_ptr<set<line_no>> &lines=wm[word];
+			if(!lines)
+				lines.reset(new set<line_no>);
+			lines->insert(line_number);
+		}
+	}
+}
+QueryResult TextQuery::query(const string &sought) const
+{
+	static shared_ptr<set<line_no>> nodata(new set<line_no>);
+	map<string,shared_ptr<set<line_no>>>::iterator map_it=wm.find(sought);
+	if(map_it==wm.end())
+		return QueryResult(sought,nodata,file);
+	else
+		return QueryResult(sought,map_it->second,file);
+}
+```
+>QueryResult.h
+```
+#ifndef QUERYRESULT_H
+#define QUERYRESULT_H
+#include <iostream>
+#include <string>
+#include <memory>
+#include <vector>
+#include <set>
+class QueryResult
+{
+friend std::ostream &print(std::ostream &,const QueryResult &);
+public:
+	QueryResult(std::string s,std::shared_ptr<std::set<std::vector<std::string>::size_type>> l,std::shared_ptr<std::vector<std::string>> f):sought(s),lines(l),file(f){}
+private:
+	std::string sought;
+	std::shared_ptr<std::set<std::vector<std::string>::size_type>> lines;
+	std::shared_ptr<std::vector<std::string>> file;
+};
+std::ostream &print(std::ostream &,const QueryResult &);
+inline std::string make_plural(std::size_t count,const std::string &word,const std::string &ending)
+{
+	return (count>1)?word+ending:word;
+}
+#endif
+```
+>QueryResult.cpp
+```
+#include <iostream>
+#include "QueryResult.h"
+std::ostream &print(std::ostream &os,const QueryResult &qr)
+{
+	os<<qr.sought<<" occurs "<<qr.lines->size()<<" "<<make_plural(qr.lines->size(),"time","s")<<endl;
+	for(auto num:*(qr.lines))
+		os<<"\t(line "<<num+1<<")"<<*(qr.file->begin()+num)<<endl;
+	return os;
+}
+```
+### 12.28
+```
+#include <iostream>
+#include <fstream>
+#include <sstream>
+#include <string>
+#include <vector>
+#include <map>
+#include <set>
+using namespace std;
+int main(int argc,char *argv[])
+{
+	size_t lines_number=0;
+	string tmp,word;
+	vector<string> text;
+	map<string,set<size_t>> words_lines;
+	ifstream infile(argv[1]);
+	while(getline(infile,tmp))
+	{
+		text.push_back(tmp);
+		istringstream ln(tmp);
+		while(ln>>word)
+		{
+			words_lines[word].insert(lines_number);
+		}
+		++lines_number;
+	}
+	while(1)
+	{
+		cout<<"Which word do you want to find(q to quit):";
+		if(!(cin>>word)||word=="q")
+			break;
+		const auto p=words_lines.find(word);
+		if(p==words_lines.end())
+			cout<<"There is no "<<word<<endl;
+		else
+		{
+			cout<<word<<" occurs "<<(p->second).size()<<" times"<<endl;
+			for(auto iter=(p->second).cbegin();iter!=(p->second).cend();++iter)
+			{
+				cout<<"(line "<<*iter+1<<")"<<text[*iter]<<endl;
+			}
+		}
+	}
+	return 0;
+}
+```
+### 12.29
+```
+#include <iostream>
+#include <fstream>
+#include <sstream>
+#include <string>
+#include <vector>
+#include <map>
+#include <set>
+using namespace std;
+int main(int argc,char *argv[])
+{
+	size_t lines_number=0;
+	string tmp,word;
+	vector<string> text;
+	map<string,set<size_t>> words_lines;
+	ifstream infile(argv[1]);
+	while(getline(infile,tmp))//这里如果要改成do while的模式的话，得在前面先getline，进入循环后又要判断一次读入结果，繁琐得多
+	{
+		text.push_back(tmp);
+		istringstream ln(tmp);
+		while(ln>>word)
+		{
+			words_lines[word].insert(lines_number);
+		}
+		++lines_number;
+	}
+	do//这里改成do while没有什么影响
+	{
+		cout<<"Which word do you want to find(q to quit):";
+		if(!(cin>>word)||word=="q")
+			break;
+		const auto p=words_lines.find(word);
+		if(p==words_lines.end())
+			cout<<"There is no "<<word<<endl;
+		else
+		{
+			cout<<word<<" occurs "<<(p->second).size()<<" times"<<endl;
+			for(auto iter=(p->second).cbegin();iter!=(p->second).cend();++iter)
+			{
+				cout<<"(line "<<*iter+1<<")"<<text[*iter]<<endl;
+			}
+		}
+	}
+	while(1);
+	return 0;
+}
+```
+### 12.30
+```
+#include <iostream>
+#include <fstream>
+#include "12-27/TextQuery.h"
+#include "12-27/QueryResult.h"
+using namespace std;
+void runQueries(ifstream &infile)
+{
+	TextQuery tq(infile);
+	while(true)
+	{
+		cout<<"enter word to look for, or q to quit:";
+		string s;
+		if(!(cin>>s)||s=="q")
+			break;
+		print(cout,tq.query(s))<<endl;
+	}
+}
+int main(int argc,char *argv[])
+{
+	ifstream infile(argv[1]);
+	runQueries(infile);
+	return 0;
+}
+```
+### 12.31
+我认为时set更方便，因为vector不会维护元素的序，所以输出时需要另外的操作。同时，vector不保证关键字不重复，这又需要另外的操作。
+### 12.32
