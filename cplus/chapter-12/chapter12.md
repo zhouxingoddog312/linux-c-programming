@@ -926,3 +926,304 @@ int main(int argc,char *argv[])
 ### 12.31
 我认为时set更方便，因为vector不会维护元素的序，所以输出时需要另外的操作。同时，vector不保证关键字不重复，这又需要另外的操作。
 ### 12.32
+StrBlob.h
+```
+#ifndef STRBLOB_H
+#define STRBLOB_H
+#include <memory>
+#include <vector>
+#include <string>
+#include <initializer_list>
+#include <stdexcept>
+class StrBlobPtr;
+class StrBlob
+{
+friend class StrBlobPtr;
+public:
+	typedef std::vector<std::string>::size_type size_type;
+	StrBlob();
+	StrBlob(std::initializer_list<std::string> il);
+	size_type size() const {return data->size();}
+	bool empty() const {return data->empty();}
+	void push_back(const std::string &t){data->push_back(t);}
+	void pop_back();
+	std::string &front();
+	std::string &back();
+	const std::string &front() const;
+	const std::string &back() const;
+	StrBlobPtr begin();
+	StrBlobPtr begin() const;
+	StrBlobPtr end();
+	StrBlobPtr end() const;
+private:
+	std::shared_ptr<std::vector<std::string>> data;
+	void check(size_type i,const std::string &msg) const;
+};
+class StrBlobPtr
+{
+public:
+	StrBlobPtr():curr(0){}
+	StrBlobPtr(StrBlob &a,std::size_t sz=0):wptr(a.data),curr(sz){}
+	StrBlobPtr(const StrBlob &a,std::size_t sz=0):wptr(a.data),curr(sz){}
+	std::string &deref() const;
+	StrBlobPtr &incr();
+private:
+	std::shared_ptr<std::vector<std::string>> check(std::size_t,const std::string &) const;
+	std::weak_ptr<std::vector<std::string>> wptr;
+	std::size_t curr=0;
+};
+#endif
+```
+StrBlob.cpp
+```
+#include "StrBlob.h"
+using namespace std;
+StrBlobPtr StrBlob::begin()
+{
+	return StrBlobPtr(*this);
+}
+StrBlobPtr StrBlob::begin() const
+{
+	return StrBlobPtr(*this);
+}
+StrBlobPtr StrBlob::end()
+{
+	return StrBlobPtr(*this,data->size());
+}
+StrBlobPtr StrBlob::end() const
+{
+	return StrBlobPtr(*this,data->size());
+}
+
+StrBlob::StrBlob():data(make_shared<vector<string>>()){}
+StrBlob::StrBlob(initializer_list<string> il):data(make_shared<vector<string>>(il)){}
+inline void StrBlob::check(size_type i,const string &msg) const
+{
+	if(i>=data->size())
+		throw out_of_range(msg);
+}
+string &StrBlob::front()
+{
+	check(0,"front on empty StrBlob");
+	return data->front();
+}
+string &StrBlob::back()
+{
+	check(0,"back on empty StrBlob");
+	return data->back();
+}
+const std::string &StrBlob::front() const
+{
+	check(0,"front on empty StrBlob");
+	return data->front();
+}
+const std::string &StrBlob::back() const
+{
+	check(0,"back on empty StrBlob");
+	return data->back();
+}
+void StrBlob::pop_back()
+{
+	check(0,"pop_back on empty StrBlob");
+	data->pop_back();
+}
+
+std::shared_ptr<std::vector<std::string>> StrBlobPtr::check(std::size_t i,const std::string &msg) const
+{
+	auto ret=wptr.lock();
+	if(!ret)
+		throw std::runtime_error("unbound StrBlobPtr");
+	if(i>=ret->size())
+		throw std::out_of_range(msg);
+	return ret;
+}
+std::string & StrBlobPtr::deref() const
+{
+	auto p=check(curr,"dereference past end");
+	return (*p)[curr];
+}
+StrBlobPtr & StrBlobPtr::incr()
+{
+	check(curr,"increment past end of StrBlobPtr");
+	++curr;
+	return *this;
+}
+```
+TextQuery.h
+```
+#ifndef TEXT_QUERY_H
+#define TEXT_QUERY_H
+#include <string>
+#include <vector>
+#include <map>
+#include <set>
+#include <memory>
+#include <fstream>
+#include "QueryResult.h"
+#include "StrBlob.h"
+class TextQuery
+{
+public:
+	using line_no=std::vector<std::string>::size_type;
+	TextQuery(std::ifstream &);
+	QueryResult query(const std::string &) const;
+private:
+	StrBlob file;
+	std::map<std::string,std::shared_ptr<std::set<line_no>>> wm;
+};
+#endif
+```
+TextQuery.cpp
+```
+#include <fstream>
+#include <iostream>
+#include <sstream>
+#include <vector>
+#include <set>
+#include <string>
+#include <memory>
+#include "TextQuery.h"
+using namespace std;
+TextQuery::TextQuery(ifstream &infile)
+{
+	string text;
+	while(getline(infile,text))
+	{
+		file.push_back(text);
+		size_t line_number=file.size()-1;
+		istringstream line(text);
+		string word;
+		while(line>>word)
+		{
+			shared_ptr<set<line_no>> &lines=wm[word];
+			if(!lines)
+				lines.reset(new set<line_no>);
+			lines->insert(line_number);
+		}
+	}
+}
+QueryResult TextQuery::query(const string &sought) const
+{
+	static shared_ptr<set<line_no>> nodata(new set<line_no>);
+	map<string,shared_ptr<set<line_no>>>::const_iterator map_it=wm.find(sought);
+	if(map_it==wm.end())
+		return QueryResult(sought,nodata,file);
+	else
+		return QueryResult(sought,map_it->second,file);
+}
+```
+QueryResult.h
+```
+#ifndef QUERYRESULT_H
+#define QUERYRESULT_H
+#include <iostream>
+#include <string>
+#include <memory>
+#include <vector>
+#include <set>
+#include "StrBlob.h"
+class QueryResult
+{
+friend std::ostream &print(std::ostream &,const QueryResult &);
+public:
+	QueryResult(std::string s,std::shared_ptr<std::set<std::vector<std::string>::size_type>> l,StrBlob f):sought(s),lines(l),file(f){}
+private:
+	std::string sought;
+	std::shared_ptr<std::set<std::vector<std::string>::size_type>> lines;
+	StrBlob file;
+};
+std::ostream &print(std::ostream &,const QueryResult &);
+inline std::string make_plural(std::size_t count,const std::string &word,const std::string &ending)
+{
+	return (count>1)?word+ending:word;
+}
+#endif
+```
+QueryResult.cpp
+```
+#include <iostream>
+#include "QueryResult.h"
+std::ostream &print(std::ostream &os,const QueryResult &qr)
+{
+	os<<qr.sought<<" occurs "<<qr.lines->size()<<" "<<make_plural(qr.lines->size(),"time","s")<<std::endl;
+	auto p=qr.file.begin();
+	auto index=0;
+	for(auto num:*(qr.lines))
+	{
+		os<<"\t(line "<<num+1<<")";
+		for(auto mk=num-index;mk!=0;--mk,++index)
+			p.incr();
+		os<<p.deref()<<std::endl;
+	}
+	return os;
+}
+```
+test.cpp
+```
+#include <iostream>
+#include <fstream>
+#include "TextQuery.h"
+#include "QueryResult.h"
+#include "StrBlob.h"
+using namespace std;
+void runQueries(ifstream &infile)
+{
+	TextQuery tq(infile);
+	while(true)
+	{
+		cout<<"enter word to look for, or q to quit:";
+		string s;
+		if(!(cin>>s)||s=="q")
+			break;
+		print(cout,tq.query(s))<<endl;
+	}
+}
+int main(int argc,char *argv[])
+{
+	ifstream infile(argv[1]);
+	runQueries(infile);
+	return 0;
+}
+```
+### 12.33
+QueryResult.h
+```
+#ifndef QUERYRESULT_H
+#define QUERYRESULT_H
+#include <iostream>
+#include <string>
+#include <memory>
+#include <vector>
+#include <set>
+class QueryResult
+{
+friend std::ostream &print(std::ostream &,const QueryResult &);
+public:
+	QueryResult(std::string s,std::shared_ptr<std::set<std::vector<std::string>::size_type>> l,std::shared_ptr<std::vector<std::string>> f):sought(s),lines(l),file(f){}
+	std::set<std::vector<std::string>::size_type>::iterator begin() const {return lines->begin();}
+	std::set<std::vector<std::string>::size_type>::iterator end() const {return lines->end();}
+	std::shared_ptr<std::vector<std::string>> get_file(){return file;}
+private:
+	std::string sought;
+	std::shared_ptr<std::set<std::vector<std::string>::size_type>> lines;
+	std::shared_ptr<std::vector<std::string>> file;
+};
+std::ostream &print(std::ostream &,const QueryResult &);
+inline std::string make_plural(std::size_t count,const std::string &word,const std::string &ending)
+{
+	return (count>1)?word+ending:word;
+}
+#endif
+```
+QueryReuslt.cpp
+```
+#include <iostream>
+#include "QueryResult.h"
+std::ostream &print(std::ostream &os,const QueryResult &qr)
+{
+	os<<qr.sought<<" occurs "<<qr.lines->size()<<" "<<make_plural(qr.lines->size(),"time","s")<<std::endl;
+	for(auto num:*(qr.lines))
+		os<<"\t(line "<<num+1<<")"<<*(qr.file->begin()+num)<<std::endl;
+	return os;
+}
+```
