@@ -46,3 +46,168 @@ private:
 	int i;
 }
 ```
+### 13.9
+- 析构函数用来释放对象使用的资源，并销毁对象得非static数据成员。
+- 合成析构函数要嘛被用来阻止该类型的对象被销毁，要嘛函数体为空，在函数体之后进行析构阶段销毁对象非static数据成员。
+- 当一个类未定义自己的析构函数时，编译器会为它定义一个合成析构函数。
+### 13.10
+- StrBlob类未定义自己的析构函数，所以编译器会为它定义一个合成析构函数，该函数的函数体为空。StrBlob类型对象销毁时，在执行完空的函数体后会进行析构阶段，这时会调用shared_ptr类型数据成员自己的析构函数。
+- StrBlobPtr类未定义自己的析构函数，所以编译器会为它定义一个合成的析构函数，该函数的函数体为空。StrBlobPtr类型对象销毁时，在执行完空的函数体后会进行析构阶段，这时curr成员为内置类型，什么也不做。再依次执行weak_ptr与shared_ptr的析构函数。
+### 13.11
+```
+class HasPtr
+{
+public:
+	HasPtr(const std::string &s=std::string()):ps(new std::string(s)),i(0) {}
+	HasPtr(const HasPtr &OHasPtr):ps(new std::string(*(OHasPtr.ps))),i(OHasPtr.i) {}
+	HasPtr & operator=(const HasPtr &rhs) {std::string *newps=new std::string(*rhs.ps);delete ps;ps=newps;i=rhs.i;return *this;}
+	~HasPtr() {delete ps;}
+private:
+	std::string *ps;
+	int i;
+}
+```
+### 13.12
+会发生3次析构函数的调用，代码块结束时四个局部变量都离开了其作用域，将会被销毁。但trans是内置指针类型，销毁它时什么都不会做，自然也就不会调用Sales_data的析构函数。
+### 13.13
+```
+#include <iostream>
+#include <vector>
+using std::cout;
+using std::endl;
+using std::vector;
+class X
+{
+public:
+	X() {std::cout<<"X()"<<std::endl;}
+	X(const X &) {std::cout<<"X(const X &)"<<std::endl;}
+	X & operator=(const X &) {std::cout<<"X=X"<<std::endl;return *this;}
+	~X() {std::cout<<"~X()"<<std::endl;}
+private:
+};
+void f1(X x) {}
+void f2(X &x) {}
+int main(void)
+{
+    cout << "局部变量：" << endl;
+    X x;
+    cout << endl;
+
+    cout << "非引用参数传递：" << endl;
+    f1(x);
+    cout << endl;
+
+    cout << "引用参数传递：" << endl;
+    f2(x);
+    cout << endl;
+
+    cout << "动态分配：" << endl;
+    X *px = new X;
+    cout << endl;
+
+    cout << "添加到容器中：" << endl;
+    vector<X> vx;
+    vx.push_back(x);
+    cout << endl;
+
+    cout << "释放动态分配对象：" << endl;
+    delete px;
+    cout << endl;
+
+    cout << "拷贝初始化和赋值：" << endl;
+    X y = x;
+    y = x;
+    cout << endl;
+
+    cout << "程序结束！" << endl;
+    return 0;
+}
+```
+### 13.14
+代码将输出三个相同的序号，因为合成的拷贝构造函数简单的将序号复制，这三个对象的需要都将等于对象a创建时的序号。
+```
+#include <iostream>
+unsigned idx=0;
+class numbered
+{
+friend void f(numbered s);
+public:
+	numbered():mysn(idx++) {}
+private:
+	unsigned mysn=0;
+};
+using std::cout;
+using std::endl;
+void f(numbered s)
+{
+	cout<<s.mysn<<endl;
+}
+int main(void)
+{
+	numbered a,b=a,c=b;
+	f(a);
+	f(b);
+	f(c);
+	return 0;
+}
+```
+### 13.15
+可以改变上一题中调用的输出结果，`b=a`以及`c=b`都将调用拷贝构造函数为对象生成唯一的序号。而在调用函数f的过程中，由于对象作为实参传递给非引用类型的形参，又会调用拷贝构造函数为函数的局部对象生成唯一的序号。
+```
+#include <iostream>
+unsigned idx=0;
+class numbered
+{
+friend void f(numbered s);
+public:
+	numbered():mysn(idx++) {}
+	numbered(const numbered &ori_num):mysn(idx++) {}
+private:
+	unsigned mysn=0;
+};
+using std::cout;
+using std::endl;
+void f(numbered s)
+{
+	cout<<s.mysn<<endl;
+}
+int main(void)
+{
+	numbered a,b=a,c=b;
+	f(a);
+	f(b);
+	f(c);
+	return 0;
+}
+```
+### 13.16
+会改变输出结果，在调用函数f时就不会再调用numbered类型对象的拷贝构造函数，输出的就是分别a、b、c的序号数据成员。
+```
+#include <iostream>
+unsigned idx=0;
+class numbered
+{
+friend void f(const numbered &s);
+public:
+	numbered():mysn(idx++) {}
+	numbered(const numbered &ori_num):mysn(idx++) {}
+private:
+	unsigned mysn=0;
+};
+using std::cout;
+using std::endl;
+void f(const numbered &s)
+{
+	cout<<s.mysn<<endl;
+}
+int main(void)
+{
+	numbered a,b=a,c=b;
+	f(a);
+	f(b);
+	f(c);
+	return 0;
+}
+```
+### 13.17
+如上。
