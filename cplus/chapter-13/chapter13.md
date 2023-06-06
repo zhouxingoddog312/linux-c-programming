@@ -211,3 +211,35 @@ int main(void)
 ```
 ### 13.17
 如上。
+### 13.18
+```
+class Employee
+{
+public:
+	Employee():unique_sn(sn++) {}
+	Employee(const std::string &str):name(str),unique_sn(sn++) {}
+private:
+	std::string name;
+	unsigned unique_sn;
+	static unsigned sn;
+};
+unsigned Employee::sn=0;
+```
+### 13.19
+Employee类需要自己的拷贝控制成员，因为合成的拷贝构造函数和拷贝赋值运算符只会直接拷贝雇员证号数据成员。
+```
+class Employee
+{
+public:
+	Employee():unique_sn(sn++) {}
+	Employee(const std::string &str):name(str),unique_sn(sn++) {}
+	Employee(const Employee &rhs):name(rhs.name),unique_sn(sn++) {}
+	Employee & operator=(const Employee &rhs) {name=rhs.name;return *this;}
+	~Employee() {}
+private:
+	std::string name;
+	unsigned unique_sn;
+	static unsigned sn;
+};
+unsigned Employee::sn=0;
+```
