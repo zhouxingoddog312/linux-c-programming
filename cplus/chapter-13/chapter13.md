@@ -243,3 +243,362 @@ private:
 };
 unsigned Employee::sn=0;
 ```
+### 13.20
+TextQuery和QueryResult类都未定义自己的拷贝控制成员，所以它们都会使用合成的版本，在合成版本的拷贝控制成员中，这两个类的shared_ptr、map、string类型的数据成员都会调用它们自己的拷贝控制成员完成拷贝、赋值、销毁的工作。
+### 13.21
+TextQuery和QueryResult类的数据成员都是标准库类型，它们都定义有设计良好的拷贝控制成员，用合成的拷贝控制成员即可方便的管理这两个类型。所以它们不需要定义自己版本的拷贝控制成员。
+### 13.22
+```
+class HasPtr
+{
+	public:
+		HasPtr(const std::string &s=std::string()):pts(new std::string(s)) {}
+		HasPtr(const HasPtr &org):value(org.value),pts(new std::string(*org.pts)) {}
+		HasPtr & operator=(const HasPtr &rhs) {std::string *tmp=new std::string(*rhs.pts);delete pts;pts=tmp;value=rhs.value;return *this;}
+		~HasPtr() {delete pts;}
+	private:
+		int value=0;
+		std::string *pts;
+};
+```
+### 13.23
+如上
+### 13.24
+未定义析构函数则无法释放指针数据成员所管理的内存，造成内存泄漏。未定义拷贝构造函数，则会简单的复制指针数据成员，使生成的新对象与原对象的指针数据成员指向同一个string。
+### 13.25
+拷贝构造函数以及拷贝赋值运算符需要使用原对象的data成员所指向的vector初始化被构造以及被赋值对象的data成员，如此可以复制该vector而不是拷贝shared_ptr成员。因为StrBlob类中只有一个shared_ptr类的数据成员，它有设计良好的析构函数，所以合成的析构函数可以顺利的完成相应工作。
+### 13.26
+==StrBlob.h==
+```
+#ifndef STRBLOB_H
+#define STRBLOB_H
+#include <memory>
+#include <vector>
+#include <string>
+#include <initializer_list>
+#include <stdexcept>
+class StrBlobPtr;
+class StrBlob
+{
+friend class StrBlobPtr;
+public:
+	typedef std::vector<std::string>::size_type size_type;
+	StrBlob();
+	StrBlob(std::initializer_list<std::string> il);
+	
+	StrBlob(const StrBlob &);
+	StrBlob & operator=(const StrBlob &);
+
+	size_type size() const {return data->size();}
+	bool empty() const {return data->empty();}
+	void push_back(const std::string &t){data->push_back(t);}
+	void pop_back();
+	std::string &front();
+	std::string &back();
+	const std::string &front() const;
+	const std::string &back() const;
+	StrBlobPtr begin();
+	StrBlobPtr begin() const;
+	StrBlobPtr end();
+	StrBlobPtr end() const;
+private:
+	std::shared_ptr<std::vector<std::string>> data;
+	void check(size_type i,const std::string &msg) const;
+};
+class StrBlobPtr
+{
+public:
+	StrBlobPtr():curr(0){}
+	StrBlobPtr(StrBlob &a,std::size_t sz=0):wptr(a.data),curr(sz){}
+	StrBlobPtr(const StrBlob &a,std::size_t sz=0):wptr(a.data),curr(sz){}
+	std::string &deref() const;
+	StrBlobPtr &incr();
+private:
+	std::shared_ptr<std::vector<std::string>> check(std::size_t,const std::string &) const;
+	std::weak_ptr<std::vector<std::string>> wptr;
+	std::size_t curr=0;
+};
+#endif
+```
+==StrBlob.cpp==
+```
+#include "StrBlob.h"
+using namespace std;
+StrBlobPtr StrBlob::begin()
+{
+	return StrBlobPtr(*this);
+}
+StrBlobPtr StrBlob::begin() const
+{
+	return StrBlobPtr(*this);
+}
+StrBlobPtr StrBlob::end()
+{
+	return StrBlobPtr(*this,data->size());
+}
+StrBlobPtr StrBlob::end() const
+{
+	return StrBlobPtr(*this,data->size());
+}
+
+StrBlob::StrBlob():data(make_shared<vector<string>>()){}
+StrBlob::StrBlob(initializer_list<string> il):data(make_shared<vector<string>>(il)){}
+StrBlob::StrBlob(const StrBlob &org):data(make_shared<std::vector<std::string>>(*org.data)) {}
+StrBlob & StrBlob::operator=(const StrBlob &rhs)
+{
+	data=make_shared<std::vector<std::string>>(*rhs.data);
+	return *this;
+}
+inline void StrBlob::check(size_type i,const string &msg) const
+{
+	if(i>=data->size())
+		throw out_of_range(msg);
+}
+string &StrBlob::front()
+{
+	check(0,"front on empty StrBlob");
+	return data->front();
+}
+string &StrBlob::back()
+{
+	check(0,"back on empty StrBlob");
+	return data->back();
+}
+const std::string &StrBlob::front() const
+{
+	check(0,"front on empty StrBlob");
+	return data->front();
+}
+const std::string &StrBlob::back() const
+{
+	check(0,"back on empty StrBlob");
+	return data->back();
+}
+void StrBlob::pop_back()
+{
+	check(0,"pop_back on empty StrBlob");
+	data->pop_back();
+}
+
+std::shared_ptr<std::vector<std::string>> StrBlobPtr::check(std::size_t i,const std::string &msg) const
+{
+	auto ret=wptr.lock();
+	if(!ret)
+		throw std::runtime_error("unbound StrBlobPtr");
+	if(i>=ret->size())
+		throw std::out_of_range(msg);
+	return ret;
+}
+std::string & StrBlobPtr::deref() const
+{
+	auto p=check(curr,"dereference past end");
+	return (*p)[curr];
+}
+StrBlobPtr & StrBlobPtr::incr()
+{
+	check(curr,"increment past end of StrBlobPtr");
+	++curr;
+	return *this;
+}
+```
+### 13.27
+```
+class HasPtr
+{
+	public:
+		HasPtr(const std::string &s=std::string()):pts(new std::string(s)),value(0),use(new std::size_t(1)) {}
+		HasPtr(const HasPtr &org):pts(org.pts),value(org.value),use(org.use) {++*use;}
+		HasPtr & operator=(const HasPtr &rhs);
+		~HasPtr();
+	private:
+		std::string *pts;
+		int value;
+		std::size_t *use;
+};
+HasPtr & HasPtr::operator=(const HasPtr &rhs)
+{
+	++*rhs.use;
+	if(--*use==0)
+	{
+		delete pts;
+		delete use;
+	}
+	pts=rhs.pts;
+	value=rhs.value;
+	use=rhs.use;
+	return *this;
+}
+HasPtr::~HasPtr()
+{
+	if(--*use)
+	{
+		delete pts;
+		delete use;
+	}
+}
+```
+### 13.28
+```
+class TreeNode
+{
+	public:
+		TreeNode():count(1),left(nullptr),right(nullptr) {}
+		TreeNode(const std::string &str=std::string(),TreeNode *lchild=nullptr,TreeNode *rchild=nullptr):value(str),count(1),left(lchild),right(rchild) {}
+		void CopyTree();
+		int ReleaseTree();
+		TreeNode(const TreeNode &);
+		~TreeNode();
+	private:
+		std::string value;
+		int count;
+		TreeNode *left;
+		TreeNode *right;
+};
+class BinStrTree
+{
+	public:
+		BinStrTree():root(nullptr) {}
+		BinStrTree(TreeNode *tree=nullptr):root(tree) {}
+		BinStrTree(const BinStrTree &);
+		~BinStrTree();
+	private:
+		TreeNode *root;
+};
+BinStrTree::BinStrTree(const BinStrTree &org):root(org.root)
+{
+	root->CopyTree();
+}
+BinStrTree::~BinStrTree()
+{
+	if(!root->ReleaseTree())
+		delete root;
+}
+
+void TreeNode::CopyTree()
+{
+	if(left)
+		left->CopyTree();
+	if(right)
+		right->CopyTree();
+	++count;
+}
+int TreeNode::ReleaseTree()
+{
+	if(left)
+	{
+		if(!left->ReleaseTree())
+			delete left;
+	}
+	if(right)
+	{
+		if(!right->ReleaseTree())
+			delete  right;
+	}
+	--count;
+	return count;
+}
+TreeNode::TreeNode(const TreeNode &org):value(org.value),count(1),left(org.left),right(org.right)
+{
+	if(left)
+		left->CopyTree();
+	if(right)
+		right->CopyTree();
+}
+TreeNode::~TreeNode()
+{
+	if(count)
+		ReleaseTree();
+}
+```
+### 13.29
+`swap(HasPtr &,HasPtr &)`中所调用的swap是属于标准库的std::swap版本，所以不会导致递归。
+### 13.30
+```
+#include <iostream>
+#include <string>
+class HasPtr
+{
+	friend void swap(HasPtr &,HasPtr &);
+	friend void print(const HasPtr &);
+	public:
+		HasPtr(const std::string &s=std::string()):pts(new std::string(s)) {}
+		HasPtr(const HasPtr &org):value(org.value),pts(new std::string(*org.pts)) {}
+		HasPtr & operator=(const HasPtr &rhs) {std::string *tmp=new std::string(*rhs.pts);delete pts;pts=tmp;value=rhs.value;return *this;}
+		~HasPtr() {delete pts;}
+	private:
+		int value=0;
+		std::string *pts;
+};
+void swap(HasPtr &lhs,HasPtr &rhs)
+{
+	using std::swap;
+	swap(lhs.value,rhs.value);
+	swap(lhs.pts,rhs.pts);
+	std::cout<<"swap complete."<<std::endl;
+}
+void print(const HasPtr &hp)
+{
+	std::cout<<*hp.pts<<std::endl;
+}
+int main(void)
+{
+	HasPtr a("s1"),b("s2");
+	swap(a,b);
+	std::cout<<"a"<<std::endl;
+	print(a);
+	std::cout<<"b"<<std::endl;
+	print(b);
+	return 0;
+}
+```
+### 13.31
+```
+#include <iostream>
+#include <string>
+#include <vector>
+#include <algorithm>
+class HasPtr
+{
+	friend void swap(HasPtr &,HasPtr &);
+	friend std::ostream & print(std::ostream &,const HasPtr &);
+	public:
+		HasPtr(const std::string &s=std::string()):pts(new std::string(s)) {}
+		HasPtr(const HasPtr &org):value(org.value),pts(new std::string(*org.pts)) {}
+		HasPtr & operator=(const HasPtr &rhs) {std::string *tmp=new std::string(*rhs.pts);delete pts;pts=tmp;value=rhs.value;return *this;}
+		bool operator<(const HasPtr &rhs) const {return *pts<*rhs.pts;}
+		~HasPtr() {delete pts;}
+	private:
+		int value=0;
+		std::string *pts;
+};
+inline void swap(HasPtr &lhs,HasPtr &rhs)
+{
+	using std::swap;
+	swap(lhs.value,rhs.value);
+	swap(lhs.pts,rhs.pts);
+	std::cout<<"swap complete."<<std::endl;
+}
+std::ostream & print(std::ostream &os,const HasPtr &hp)
+{
+	os<<*hp.pts<<std::endl;
+	return os;
+}
+using std::vector;
+using std::cout;
+using std::string;
+int main(void)
+{
+	vector<HasPtr> hpv;
+	string s="z y x a c d e f i h j k o q p r t s n m l";
+	for(auto str:s)
+		hpv.push_back(HasPtr(string("")+str));
+	for(auto pv:hpv)
+		print(cout,pv);
+	sort(hpv.begin(),hpv.end());
+	for(auto pv:hpv)
+		print(cout,pv);
+	return 0;
+}
+```
+### 13.32
+类指针的HasPtr版本不会分配新的string副本，所以不需要自己的swap函数。
