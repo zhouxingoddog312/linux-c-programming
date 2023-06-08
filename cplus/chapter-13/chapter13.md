@@ -602,3 +602,141 @@ int main(void)
 ```
 ### 13.32
 类指针的HasPtr版本不会分配新的string副本，所以不需要自己的swap函数。
+### 13.33
+因为首先我们要将Folder的指针存入Message的folders数据成员中，那么形参就不能是Folder，而应该是Folder的引用或指针。而save和remove函数中调用了Folder的addMsg和remMsg成员函数，这将改变Folder的数据成员，所以不能是const的。
+### 13.34
+==Message.h==
+```
+#ifndef _MESSAGE_H
+#define _MESSAGE_H
+#include <string>
+#include <set>
+class Folder;
+class Message
+{
+	friend class Folder;
+	friend void swap(Message &,Message &);
+	public:
+		explicit Message(const std::string &str=""):contents(str) {}
+		Message(const Message &);
+		Message & operator=(const Message &);
+		~Message();
+		void save(Folder &);
+		void remove(Folder &);
+	private:
+		std::string contents;
+		std::set<Folder *> folders;
+		void add_to_Folders(const Message &);
+		void remove_from_Folders();
+		void addfolder(Folder *f) {folders.insert(f);}
+		void remfolder(Folder *f) {folders.erase(f);}
+};
+class Folder
+{
+	friend void swap(Message &,Message &);
+	friend class Message;
+	public:
+		Folder()=default;
+		Folder(const Folder &f):messages(f.messages) {add_to_Messages(f);}
+		Folder & operator=(const Folder &);
+		~Folder();
+		void save(Message &);
+		void remove(Message &);
+	private:
+		std::set<Message *> messages;
+		void addMsg(Message *m) {messages.insert(m);}
+		void remMsg(Message *m) {messages.erase(m);}
+		void add_to_Messages(const Folder &);
+		void remove_from_Messages();
+};
+#endif
+```
+==Message.cpp==
+```
+#include "Message.h"
+void Message::save(Folder &f)
+{
+	folders.insert(&f);
+	f.addMsg(this);
+}
+void Message::remove(Folder &f)
+{
+	folders.erase(&f);
+	f.remMsg(this);
+}
+void Message::add_to_Folders(const Message &m)
+{
+	for(auto f:m.folders)
+		f->addMsg(this);
+}
+void Message::remove_from_Folders()
+{
+	for(auto f:folders)
+		f->remMsg(this);
+}
+Message::Message(const Message &m):contents(m.contents),folders(m.folders)
+{
+	add_to_Folders(m);
+}
+Message & Message::operator=(const Message &rhs)
+{
+	remove_from_Folders();
+	contents=rhs.contents;
+	folders=rhs.folders;
+	add_to_Folders(rhs);
+	return *this;
+}
+Message::~Message()
+{
+	remove_from_Folders();
+}
+void swap(Message &lhs,Message &rhs)
+{
+	using std::swap;
+	for(auto f:lhs.folders)
+		f->remMsg(&lhs);
+	for(auto f:rhs.folders)
+		f->remMsg(&rhs);
+	swap(lhs.contents,rhs.contents);
+	swap(lhs.folders,rhs.folders);
+	for(auto f:lhs.folders)
+		f->addMsg(&lhs);
+	for(auto f:rhs.folders)
+		f->addMsg(&rhs);
+}
+
+
+
+void Folder::add_to_Messages(const Folder &f)
+{
+	for(auto m:f.messages)
+		m->addfolder(this);
+}
+void Folder::remove_from_Messages()
+{
+	for(auto m:messages)
+		m->folders.erase(this);
+}
+void Folder::save(Message &m)
+{
+	messages.insert(&m);
+	m.addfolder(this);
+}
+void Folder::remove(Message &m)
+{
+	messages.erase(&m);
+	m.remfolder(this);
+}
+Folder & Folder::operator=(const Folder &rhs)
+{
+	remove_from_Messages();
+	messages=rhs.messages;
+	add_to_Messages(rhs);
+	return *this;
+}
+Folder::~Folder()
+{
+	remove_from_Messages();
+}
+```
+### 13.35
