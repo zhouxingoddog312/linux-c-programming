@@ -605,7 +605,7 @@ int main(void)
 ### 13.33
 因为首先我们要将Folder的指针存入Message的folders数据成员中，那么形参就不能是Folder，而应该是Folder的引用或指针。而save和remove函数中调用了Folder的addMsg和remMsg成员函数，这将改变Folder的数据成员，所以不能是const的。
 ### 13.34
-==Message.h==
+<a id="1">Message.h</a>
 ```
 #ifndef _MESSAGE_H
 #define _MESSAGE_H
@@ -740,3 +740,430 @@ Folder::~Folder()
 }
 ```
 ### 13.35
+如果使用合成的拷贝构造函数，那么新的Message对象不会被正确的放到对应的Folder中。如果使用合成的拷贝赋值运算符，那么左侧运算对象无法正确从Folder中删除，赋值后也无法放入对应的Folder中。合成的析构函数同样无法正确从Folder中删除。
+### 13.36
+[见13.34](#1)
+### 13.37
+[见13.34](#1)
+### 13.38
+使用拷贝并交换的方式来设计Message的赋值运算符的话，会调用其拷贝构造函数及swap进行交换，这样会多次发生从所有目录中删除和添加到所有目录中的操作，效率低下。
+### 13.39
+<a id="2">StrVec.h</a>
+```
+#ifndef _STRVEC_H
+#define _STRVEC_H
+#include <string>
+#include <cstddef>
+#include <utility>
+#include <memory>
+#include <initializer_list>
+class StrVec
+{
+	public:
+		StrVec():elements(nullptr),first_free(nullptr),cap(nullptr) {}
+		StrVec(const StrVec &);
+		StrVec(std::initializer_list<std::string>);
+		StrVec & operator=(const StrVec &);
+		~StrVec() {free();}
+		void push_back(const std::string &);
+		size_t size() {return first_free-elements;}
+		size_t capacity() {return cap-elements;}
+		std::string *begin() const {return elements;}
+		std::string *end() const {return first_free;}
+
+		void resize(const size_t n,const std::string &orgv=std::string());
+		void reserve(const size_t n);
+	private:
+		std::string *elements;
+		std::string *first_free;
+		std::string *cap;
+		static std::allocator<std::string> alloc;
+		void chk_n_alloc() {if(size()==capacity()) reallocate();}
+		std::pair<std::string *,std::string *> alloc_n_copy(const std::string *,const std::string *);
+		void free();
+		void reallocate();
+};
+#endif
+```
+==StrVec.cpp==
+```
+#include "StrVec.h"
+StrVec::StrVec(const StrVec &org)
+{
+	std::pair<std::string *,std::string *> data=alloc_n_copy(org.begin(),org.end());
+	elements=data.first;
+	first_free=cap=data.second;
+}
+StrVec::StrVec(std::initializer_list<std::string> ls)
+{
+	auto data=alloc_n_copy(ls.begin(),ls.end());
+	elements=data.first;
+	first_free=cap=data.second;
+}
+StrVec & StrVec::operator=(const StrVec &rhs)
+{
+	auto data=alloc_n_copy(rhs.begin(),rhs.end());
+	free();
+	elements=data.first;
+	first_free=cap=data.second;
+	return *this;
+}
+void StrVec::push_back(const std::string &s)
+{
+	chk_n_alloc();
+	alloc.construct(first_free++,s);
+}
+std::pair<std::string *,std::string *> StrVec::alloc_n_copy(const std::string *b,const std::string *e)
+{
+	std::string *data=alloc.allocate(e-b);
+	return {data,uninitialized_copy(b,e,data)};
+}
+void StrVec::free()
+{
+	if(elements)
+	{
+		for(auto p=first_free;p!=elements;)
+			alloc.destroy(--p);
+		alloc.deallocate(elements,cap-elements);
+	}
+}
+void StrVec::reallocate()
+{
+	size_t newcapacity=size()?2*size():1;
+	std::string *newdata=alloc.allocate(newcapacity);
+	std::string *dest=newdata;
+	std::string *src=elements;
+	for(size_t i=0;i!=size();++i)
+		alloc.construct(dest++,std::move(*src++));
+	free();
+	elements=newdata;
+	first_free=dest;
+	cap=elements+newcapacity;
+}
+void StrVec::reserve(const size_t n)
+{
+	if(n>capacity())
+	{
+		std::string *newdata=alloc.allocate(n);
+		std::string *dest=newdata;
+		std::string *src=elements;
+		for(size_t i=0;i!=size();++i)
+			alloc.construct(dest++,std::move(*src++));
+		free();
+		elements=newdata;
+		first_free=dest;
+		cap=elements+n;
+	}
+}
+void StrVec::resize(const size_t n,const std::string &orgv)
+{
+	if(n<=size())
+	{
+		std::string *b=elements+n;
+		std::string *e=first_free;
+		while(b!=e)
+			alloc.destroy(b++);
+		first_free=elements+n;
+	}
+	else if(n<=capacity())
+	{
+		std::string *b=first_free;
+		std::string *e=elements+n;
+		while(b!=e)
+			alloc.construct(b++,orgv);
+		first_free=e;
+	}
+	else
+	{
+		reserve(n);
+		std::string *b=first_free;
+		std::string *e=elements+n;
+		while(b!=e)
+			alloc.construct(b++,orgv);
+		first_free=e;
+	}
+}
+```
+### 13.40
+[见13.39](#2)
+### 13.41
+使用后置递增运算符，那么相当于现在指针所指位置构造对象，再使指针前进。如果使用前置递增运算的话，first_free当前所指的位置就无法构造到对象。
+### 13.42
+==13-42.cpp==
+```
+#include <iostream>
+#include <fstream>
+#include "TextQuery.h"
+#include "QueryResult.h"
+using namespace std;
+void runQueries(ifstream &infile)
+{
+	TextQuery tq(infile);
+	while(true)
+	{
+		cout<<"enter word to look for, or q to quit:";
+		string s;
+		if(!(cin>>s)||s=="q")
+			break;
+		print(cout,tq.query(s))<<endl;
+	}
+}
+int main(int argc,char *argv[])
+{
+	ifstream infile(argv[1]);
+	runQueries(infile);
+	return 0;
+}
+```
+==TextQuery.h==
+```
+#ifndef TEXT_QUERY_H
+#define TEXT_QUERY_H
+#include <string>
+#include <vector>
+#include <map>
+#include <set>
+#include <memory>
+#include <fstream>
+#include "QueryResult.h"
+#include "StrVec.h"
+class TextQuery
+{
+public:
+	using line_no=std::vector<std::string>::size_type;
+	TextQuery(std::ifstream &);
+	QueryResult query(const std::string &) const;
+private:
+	std::shared_ptr<StrVec> file;
+	std::map<std::string,std::shared_ptr<std::set<line_no>>> wm;
+};
+#endif
+```
+==TextQuery.cpp==
+```
+#include <fstream>
+#include <iostream>
+#include <sstream>
+#include <vector>
+#include <set>
+#include <string>
+#include <memory>
+#include "TextQuery.h"
+using namespace std;
+TextQuery::TextQuery(ifstream &infile):file(new StrVec)
+{
+	string text;
+	while(getline(infile,text))
+	{
+		file->push_back(text);
+		size_t line_number=file->size()-1;
+		istringstream line(text);
+		string word;
+		while(line>>word)
+		{
+			shared_ptr<set<line_no>> &lines=wm[word];
+			if(!lines)
+				lines.reset(new set<line_no>);
+			lines->insert(line_number);
+		}
+	}
+}
+QueryResult TextQuery::query(const string &sought) const
+{
+	static shared_ptr<set<line_no>> nodata(new set<line_no>);
+	map<string,shared_ptr<set<line_no>>>::const_iterator map_it=wm.find(sought);
+	if(map_it==wm.end())
+		return QueryResult(sought,nodata,file);
+	else
+		return QueryResult(sought,map_it->second,file);
+}
+```
+==QueryResult.h==
+```
+#ifndef QUERYRESULT_H
+#define QUERYRESULT_H
+#include <iostream>
+#include <string>
+#include <memory>
+#include <vector>
+#include <set>
+#include "StrVec.h"
+class QueryResult
+{
+friend std::ostream &print(std::ostream &,const QueryResult &);
+public:
+	QueryResult(std::string s,std::shared_ptr<std::set<std::vector<std::string>::size_type>> l,std::shared_ptr<StrVec> f):sought(s),lines(l),file(f){}
+private:
+	std::string sought;
+	std::shared_ptr<std::set<std::vector<std::string>::size_type>> lines;
+	std::shared_ptr<StrVec> file;
+};
+std::ostream &print(std::ostream &,const QueryResult &);
+inline std::string make_plural(std::size_t count,const std::string &word,const std::string &ending)
+{
+	return (count>1)?word+ending:word;
+}
+#endif
+```
+==QueryResult.cpp==
+```
+#include <iostream>
+#include "QueryResult.h"
+std::ostream &print(std::ostream &os,const QueryResult &qr)
+{
+	os<<qr.sought<<" occurs "<<qr.lines->size()<<" "<<make_plural(qr.lines->size(),"time","s")<<std::endl;
+	for(auto num:*(qr.lines))
+		os<<"\t(line "<<num+1<<")"<<*(qr.file->begin()+num)<<std::endl;
+	return os;
+}
+```
+==StrVec.h==
+```
+#ifndef _STRVEC_H
+#define _STRVEC_H
+#include <string>
+#include <cstddef>
+#include <utility>
+#include <memory>
+#include <initializer_list>
+class StrVec
+{
+	public:
+		StrVec():elements(nullptr),first_free(nullptr),cap(nullptr) {}
+		StrVec(const StrVec &);
+		StrVec(std::initializer_list<std::string>);
+		StrVec & operator=(const StrVec &);
+		~StrVec() {free();}
+		void push_back(const std::string &);
+		size_t size() {return first_free-elements;}
+		size_t capacity() {return cap-elements;}
+		std::string *begin() const {return elements;}
+		std::string *end() const {return first_free;}
+
+		void resize(const size_t n,const std::string &orgv=std::string());
+		void reserve(const size_t n);
+	private:
+		std::string *elements;
+		std::string *first_free;
+		std::string *cap;
+		static std::allocator<std::string> alloc;
+		void chk_n_alloc() {if(size()==capacity()) reallocate();}
+		std::pair<std::string *,std::string *> alloc_n_copy(const std::string *,const std::string *);
+		void free();
+		void reallocate();
+};
+#endif
+```
+==StrVec.cpp==
+```
+#include "StrVec.h"
+std::allocator<std::string> StrVec::alloc;
+StrVec::StrVec(const StrVec &org)
+{
+	std::pair<std::string *,std::string *> data=alloc_n_copy(org.begin(),org.end());
+	elements=data.first;
+	first_free=cap=data.second;
+}
+StrVec::StrVec(std::initializer_list<std::string> ls)
+{
+	auto data=alloc_n_copy(ls.begin(),ls.end());
+	elements=data.first;
+	first_free=cap=data.second;
+}
+StrVec & StrVec::operator=(const StrVec &rhs)
+{
+	auto data=alloc_n_copy(rhs.begin(),rhs.end());
+	free();
+	elements=data.first;
+	first_free=cap=data.second;
+	return *this;
+}
+void StrVec::push_back(const std::string &s)
+{
+	chk_n_alloc();
+	alloc.construct(first_free++,s);
+}
+std::pair<std::string *,std::string *> StrVec::alloc_n_copy(const std::string *b,const std::string *e)
+{
+	std::string *data=alloc.allocate(e-b);
+	return {data,uninitialized_copy(b,e,data)};
+}
+void StrVec::free()
+{
+	if(elements)
+	{
+		for(auto p=first_free;p!=elements;)
+			alloc.destroy(--p);
+		alloc.deallocate(elements,cap-elements);
+	}
+}
+void StrVec::reallocate()
+{
+	size_t newcapacity=size()?2*size():1;
+	std::string *newdata=alloc.allocate(newcapacity);
+	std::string *dest=newdata;
+	std::string *src=elements;
+	for(size_t i=0;i!=size();++i)
+		alloc.construct(dest++,std::move(*src++));
+	free();
+	elements=newdata;
+	first_free=dest;
+	cap=elements+newcapacity;
+}
+void StrVec::reserve(const size_t n)
+{
+	if(n>capacity())
+	{
+		std::string *newdata=alloc.allocate(n);
+		std::string *dest=newdata;
+		std::string *src=elements;
+		for(size_t i=0;i!=size();++i)
+			alloc.construct(dest++,std::move(*src++));
+		free();
+		elements=newdata;
+		first_free=dest;
+		cap=elements+n;
+	}
+}
+void StrVec::resize(const size_t n,const std::string &orgv)
+{
+	if(n<=size())
+	{
+		std::string *b=elements+n;
+		std::string *e=first_free;
+		while(b!=e)
+			alloc.destroy(b++);
+		first_free=elements+n;
+	}
+	else if(n<=capacity())
+	{
+		std::string *b=first_free;
+		std::string *e=elements+n;
+		while(b!=e)
+			alloc.construct(b++,orgv);
+		first_free=e;
+	}
+	else
+	{
+		reserve(n);
+		std::string *b=first_free;
+		std::string *e=elements+n;
+		while(b!=e)
+			alloc.construct(b++,orgv);
+		first_free=e;
+	}
+}
+```
+### 13.43
+我更倾向于指针的表达方式，目的更清晰。
+```
+void StrVec::free()
+{
+	if(elements)
+	{
+		for_each(elements,first_free,[](string &str) {alloc.destroy(&str);});
+		alloc.deallocate(elements,cap-elements);
+	}
+}
+```
+### 13.44
