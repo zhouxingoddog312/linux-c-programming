@@ -1167,10 +1167,129 @@ void StrVec::free()
 }
 ```
 ### 13.44
+==String.h==
+#ifndef _sTRING_H
+#define _sTRING_H
+#include <iostream>
+#include <utility>
+class String
+{
+	friend std::istream & operator>>(std::istream &in,String &str);
+	friend std::ostream & operator<<(std::ostream &out,const String &str);
+	public:
+		String():head(nullptr),tail(nullptr),cap(nullptr) {}
+		String(const char *);
+		String(const String &);
+		String & operator=(const String &);
+		String operator+(const String &);
+		~String() {free();}
+
+		size_t size() const {return tail-head;}
+		size_t capacity() const {return cap-head;}
+		bool empty() const {return (head==tail)?true:false;}
+		char * begin() const {return head;}
+		char * end() const {return tail;}
+	private:
+		char *head;
+		char *tail;
+		char *cap;
+		static std::allocator<char> alloc;
+		void free();
+
+		std::pair<char *,char *> alloc_n_copy(const char *,const char *);
+		void chk_n_alloc(size_t n) {if(n+size()>capacity()) reallocate(n);}
+		void reallocate(size_t n);
+};
+std::istream & operator>>(std::istream &in,String &str);
+std::ostream & operator<<(std::ostream &out,const String &str);
+#endif
+==String.cpp==
+#include <memory>
+#include <algorithm>
+#include <cstring>
+#include <string>
+#include "String.h"
+
+String::String(const char *str)
+{
+	size_t n=strlen(str);
+	std::pair<char *,char *> newdata=alloc_n_copy(str,str+n);
+	head=newdata.first;
+	tail=cap=newdata.second;
+}
+String::String(const String &s)
+{
+	std::pair<char *,char *> newdata=alloc_n_copy(s.begin(),s.end());
+	head=newdata.first;
+	tail=cap=newdata.second;
+}
+String & String::operator=(const String &rhs)
+{
+	std::pair<char *,char *> newdata=alloc_n_copy(rhs.begin(),rhs.end());
+	free();
+	head=newdata.first;
+	tail=cap=newdata.second;
+	return *this;
+}
+String String::operator+(const String &rhs)
+{
+	String tmp(*this);
+	size_t n=rhs.size();
+	tmp.chk_n_alloc(n);
+	char *dest=tmp.tail;
+	char *src=rhs.begin();
+	for(size_t i=0;i!=6;++i)
+		alloc.construct(dest++,*src++);
+	tmp.tail=dest;
+	return tmp;
+}
+
+std::allocator<char> String::alloc;
+void String::free()
+{
+	if(head)
+	{
+		std::for_each(begin(),end(),[](char &c) {alloc.destroy(&c);});
+		alloc.deallocate(head,cap-head);
+	}
+}
+std::pair<char *,char *> String::alloc_n_copy(const char *b,const char *e)
+{
+	char *newdata=alloc.allocate(e-b);
+	return {newdata,std::uninitialized_copy(b,e,newdata)};
+}
+void String::reallocate(size_t n)
+{
+	size_t newcap=(size()>n?size()*2:n*2);
+	char *newdata=alloc.allocate(newcap);
+	char *dest=newdata;
+	char *src=head;
+	for(size_t i=0;i!=size();++i)
+		alloc.construct(dest++,std::move(*src++));
+	free();
+	head=newdata;
+	tail=dest;
+	cap=head+newcap;
+}
+std::istream & operator>>(std::istream &in,String &str)
+{
+	std::string tmp;
+	in>>tmp;
+	String Stmp(tmp.c_str());
+	str=Stmp;
+	return in;
+}
+std::ostream & operator<<(std::ostream &out,const String &str)
+{
+	std::for_each(str.begin(),str.end(),[&out](const char &c)->void {out<<c;});
+	return out;
+}
+### 13.45
+右值引用就是必须绑定到右值的引用，通过`&&`符号获得。右值引用只能绑定到一个即将要销毁的对象上，因此可以自由的移动其源资源。左值引用不能绑定到要转换的表达式、字面常量或返回右值的表达式。而右值引用恰好相反。
+返回左值的表达式包括，返回左值引用的函数、赋值、下标、解引用和前置递增/递减运算符。返回右值的表达式包括返回非引用类型的函数、算术、关系、位运算以及后置递增/递减运算符。
 ### 13.46
 - int &&r1=f();
 - int &r2=vi[0];
 - int &r3=r1;
 - int &&r4=vi[0]*f();
 ### 13.47
-
