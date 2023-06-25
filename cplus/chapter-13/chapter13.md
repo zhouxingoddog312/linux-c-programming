@@ -1167,7 +1167,8 @@ void StrVec::free()
 }
 ```
 ### 13.44
-==String.h==
+<a id="3">String.h</a>
+```
 #ifndef _sTRING_H
 #define _sTRING_H
 #include <iostream>
@@ -1203,6 +1204,7 @@ class String
 std::istream & operator>>(std::istream &in,String &str);
 std::ostream & operator<<(std::ostream &out,const String &str);
 #endif
+
 ==String.cpp==
 #include <memory>
 #include <algorithm>
@@ -1219,12 +1221,14 @@ String::String(const char *str)
 }
 String::String(const String &s)
 {
+	std::cout<<"This is copy constructor."<<std::endl;
 	std::pair<char *,char *> newdata=alloc_n_copy(s.begin(),s.end());
 	head=newdata.first;
 	tail=cap=newdata.second;
 }
 String & String::operator=(const String &rhs)
 {
+	std::cout<<"This is copy assignment operator."<<std::endl;
 	std::pair<char *,char *> newdata=alloc_n_copy(rhs.begin(),rhs.end());
 	free();
 	head=newdata.first;
@@ -1284,6 +1288,7 @@ std::ostream & operator<<(std::ostream &out,const String &str)
 	std::for_each(str.begin(),str.end(),[&out](const char &c)->void {out<<c;});
 	return out;
 }
+```
 ### 13.45
 右值引用就是必须绑定到右值的引用，通过`&&`符号获得。右值引用只能绑定到一个即将要销毁的对象上，因此可以自由的移动其源资源。左值引用不能绑定到要转换的表达式、字面常量或返回右值的表达式。而右值引用恰好相反。
 返回左值的表达式包括，返回左值引用的函数、赋值、下标、解引用和前置递增/递减运算符。返回右值的表达式包括返回非引用类型的函数、算术、关系、位运算以及后置递增/递减运算符。
@@ -1293,3 +1298,795 @@ std::ostream & operator<<(std::ostream &out,const String &str)
 - int &r3=r1;
 - int &&r4=vi[0]*f();
 ### 13.47
+[见13.44](#3)
+### 13.48
+```
+#include <iostream>
+#include <vector>
+#include "13-44/String.h"
+using namespace std;
+int main(void)
+{
+	vector<String> vs;
+	String a("a1"),b("b2"),c("c3");
+	vs.push_back(a);
+	vs.push_back(b);
+	vs.push_back(c);
+	return 0;
+}
+```
+### 13.49
+==StrVec.h==
+```
+#ifndef _STRVEC_H
+#define _STRVEC_H
+#include <string>
+#include <cstddef>
+#include <utility>
+#include <memory>
+#include <initializer_list>
+class StrVec
+{
+	public:
+		StrVec():elements(nullptr),first_free(nullptr),cap(nullptr) {}
+		StrVec(const StrVec &);
+		StrVec(StrVec &&s) noexcept :elements(s.elements),first_free(s.first_free),cap(s.cap) {s.elements=s.first_free=s.cap=nullptr;}
+		StrVec(std::initializer_list<std::string>);
+		StrVec & operator=(const StrVec &);
+		StrVec & operator=(StrVec &&) noexcept;
+		~StrVec() {free();}
+		void push_back(const std::string &);
+		size_t size() {return first_free-elements;}
+		size_t capacity() {return cap-elements;}
+		std::string *begin() const {return elements;}
+		std::string *end() const {return first_free;}
+
+		void resize(const size_t n,const std::string &orgv=std::string());
+		void reserve(const size_t n);
+	private:
+		std::string *elements;
+		std::string *first_free;
+		std::string *cap;
+		static std::allocator<std::string> alloc;
+		void chk_n_alloc() {if(size()==capacity()) reallocate();}
+		std::pair<std::string *,std::string *> alloc_n_copy(const std::string *,const std::string *);
+		void free();
+		void reallocate();
+};
+#endif
+```
+==StrVec.cpp==
+```
+#include "StrVec.h"
+std::allocator<std::string> StrVec::alloc;
+StrVec::StrVec(const StrVec &org)
+{
+	std::pair<std::string *,std::string *> data=alloc_n_copy(org.begin(),org.end());
+	elements=data.first;
+	first_free=cap=data.second;
+}
+StrVec::StrVec(std::initializer_list<std::string> ls)
+{
+	auto data=alloc_n_copy(ls.begin(),ls.end());
+	elements=data.first;
+	first_free=cap=data.second;
+}
+StrVec & StrVec::operator=(const StrVec &rhs)
+{
+	auto data=alloc_n_copy(rhs.begin(),rhs.end());
+	free();
+	elements=data.first;
+	first_free=cap=data.second;
+	return *this;
+}
+StrVec & StrVec::operator=(StrVec &&s) noexcept
+{
+	if(this!=&s)
+	{
+		free();
+		elements=s.elements;
+		first_free=s.first_free;
+		cap=s.cap;
+		s.elements=s.first_free=s.cap=nullptr;
+	}
+	return *this;
+}
+void StrVec::push_back(const std::string &s)
+{
+	chk_n_alloc();
+	alloc.construct(first_free++,s);
+}
+std::pair<std::string *,std::string *> StrVec::alloc_n_copy(const std::string *b,const std::string *e)
+{
+	std::string *data=alloc.allocate(e-b);
+	return {data,uninitialized_copy(b,e,data)};
+}
+void StrVec::free()
+{
+	if(elements)
+	{
+		for(auto p=first_free;p!=elements;)
+			alloc.destroy(--p);
+		alloc.deallocate(elements,cap-elements);
+	}
+}
+void StrVec::reallocate()
+{
+	size_t newcapacity=size()?2*size():1;
+	std::string *newdata=alloc.allocate(newcapacity);
+	std::string *dest=newdata;
+	std::string *src=elements;
+	for(size_t i=0;i!=size();++i)
+		alloc.construct(dest++,std::move(*src++));
+	free();
+	elements=newdata;
+	first_free=dest;
+	cap=elements+newcapacity;
+}
+void StrVec::reserve(const size_t n)
+{
+	if(n>capacity())
+	{
+		std::string *newdata=alloc.allocate(n);
+		std::string *dest=newdata;
+		std::string *src=elements;
+		for(size_t i=0;i!=size();++i)
+			alloc.construct(dest++,std::move(*src++));
+		free();
+		elements=newdata;
+		first_free=dest;
+		cap=elements+n;
+	}
+}
+void StrVec::resize(const size_t n,const std::string &orgv)
+{
+	if(n<=size())
+	{
+		std::string *b=elements+n;
+		std::string *e=first_free;
+		while(b!=e)
+			alloc.destroy(b++);
+		first_free=elements+n;
+	}
+	else if(n<=capacity())
+	{
+		std::string *b=first_free;
+		std::string *e=elements+n;
+		while(b!=e)
+			alloc.construct(b++,orgv);
+		first_free=e;
+	}
+	else
+	{
+		reserve(n);
+		std::string *b=first_free;
+		std::string *e=elements+n;
+		while(b!=e)
+			alloc.construct(b++,orgv);
+		first_free=e;
+	}
+}
+```
+<a id="4">String.h</a>
+```
+#ifndef _sTRING_H
+#define _sTRING_H
+#include <iostream>
+#include <utility>
+class String
+{
+	friend std::istream & operator>>(std::istream &in,String &str);
+	friend std::ostream & operator<<(std::ostream &out,const String &str);
+	public:
+		String():head(nullptr),tail(nullptr),cap(nullptr) {}
+		String(const char *);
+		String(const String &);
+		String(String &&str) noexcept :head(str.head),tail(str.tail),cap(str.cap) {str.head=str.tail=str.cap=nullptr;std::cout<<"This is move constructor."<<std::endl;}
+		String & operator=(const String &);
+		String & operator=(String &&);
+		String operator+(const String &);
+		~String() {free();}
+
+		size_t size() const {return tail-head;}
+		size_t capacity() const {return cap-head;}
+		bool empty() const {return (head==tail)?true:false;}
+		char * begin() const {return head;}
+		char * end() const {return tail;}
+	private:
+		char *head;
+		char *tail;
+		char *cap;
+		static std::allocator<char> alloc;
+		void free();
+
+		std::pair<char *,char *> alloc_n_copy(const char *,const char *);
+		void chk_n_alloc(size_t n) {if(n+size()>capacity()) reallocate(n);}
+		void reallocate(size_t n);
+};
+std::istream & operator>>(std::istream &in,String &str);
+std::ostream & operator<<(std::ostream &out,const String &str);
+#endif
+```
+==String.cpp==
+```
+#include <memory>
+#include <algorithm>
+#include <cstring>
+#include <string>
+#include "String.h"
+
+String::String(const char *str)
+{
+	size_t n=strlen(str);
+	std::pair<char *,char *> newdata=alloc_n_copy(str,str+n);
+	head=newdata.first;
+	tail=cap=newdata.second;
+}
+String::String(const String &s)
+{
+	std::cout<<"This is copy constructor."<<std::endl;
+	std::pair<char *,char *> newdata=alloc_n_copy(s.begin(),s.end());
+	head=newdata.first;
+	tail=cap=newdata.second;
+}
+String & String::operator=(const String &rhs)
+{
+	std::cout<<"This is copy assignment operator."<<std::endl;
+	std::pair<char *,char *> newdata=alloc_n_copy(rhs.begin(),rhs.end());
+	free();
+	head=newdata.first;
+	tail=cap=newdata.second;
+	return *this;
+}
+String & String::operator=(String &&rhs)
+{
+	std::cout<<"This is move assignment operator."<<std::endl;
+	if(this!=&rhs)
+	{
+		free();
+		head=rhs.head;
+		tail=rhs.tail;
+		cap=rhs.cap;
+		rhs.head=rhs.tail=rhs.cap=nullptr;
+	}
+	return *this;
+}
+String String::operator+(const String &rhs)
+{
+	String tmp(*this);
+	size_t n=rhs.size();
+	tmp.chk_n_alloc(n);
+	char *dest=tmp.tail;
+	char *src=rhs.begin();
+	for(size_t i=0;i!=6;++i)
+		alloc.construct(dest++,*src++);
+	tmp.tail=dest;
+	return tmp;
+}
+
+std::allocator<char> String::alloc;
+void String::free()
+{
+	if(head)
+	{
+		std::for_each(begin(),end(),[](char &c) {alloc.destroy(&c);});
+		alloc.deallocate(head,cap-head);
+	}
+}
+std::pair<char *,char *> String::alloc_n_copy(const char *b,const char *e)
+{
+	char *newdata=alloc.allocate(e-b);
+	return {newdata,std::uninitialized_copy(b,e,newdata)};
+}
+void String::reallocate(size_t n)
+{
+	size_t newcap=(size()>n?size()*2:n*2);
+	char *newdata=alloc.allocate(newcap);
+	char *dest=newdata;
+	char *src=head;
+	for(size_t i=0;i!=size();++i)
+		alloc.construct(dest++,std::move(*src++));
+	free();
+	head=newdata;
+	tail=dest;
+	cap=head+newcap;
+}
+std::istream & operator>>(std::istream &in,String &str)
+{
+	std::string tmp;
+	in>>tmp;
+	String Stmp(tmp.c_str());
+	str=Stmp;
+	return in;
+}
+std::ostream & operator<<(std::ostream &out,const String &str)
+{
+	std::for_each(str.begin(),str.end(),[&out](const char &c)->void {out<<c;});
+	return out;
+}
+```
+==Message.h==
+```
+#ifndef _MESSAGE_H
+#define _MESSAGE_H
+#include <string>
+#include <set>
+class Folder;
+class Message
+{
+	friend class Folder;
+	friend void swap(Message &,Message &);
+	public:
+		explicit Message(const std::string &str=""):contents(str) {}
+		Message(const Message &);
+		Message(Message &&m):contents(std::move(m.contents)) {move_Folders(&m);}
+		Message & operator=(const Message &);
+		Message & operator=(Message &&);
+		~Message();
+		void save(Folder &);
+		void remove(Folder &);
+	private:
+		std::string contents;
+		std::set<Folder *> folders;
+		void add_to_Folders(const Message &);
+		void remove_from_Folders();
+		void addfolder(Folder *f) {folders.insert(f);}
+		void remfolder(Folder *f) {folders.erase(f);}
+		void move_Folders(Message *m);
+};
+class Folder
+{
+	friend void swap(Message &,Message &);
+	friend class Message;
+	public:
+		Folder()=default;
+		Folder(const Folder &f):messages(f.messages) {add_to_Messages(f);}
+		Folder(Folder &&f) {move_Messages(&f);}
+		Folder & operator=(const Folder &);
+		Folder & operator=(Folder &&);
+		~Folder();
+		void save(Message &);
+		void remove(Message &);
+	private:
+		std::set<Message *> messages;
+		void addMsg(Message *m) {messages.insert(m);}
+		void remMsg(Message *m) {messages.erase(m);}
+		void add_to_Messages(const Folder &);
+		void remove_from_Messages();
+		void move_Messages(Folder *);
+};
+#endif
+```
+==Message.cpp==
+```
+#include "Message.h"
+void Message::save(Folder &f)
+{
+	folders.insert(&f);
+	f.addMsg(this);
+}
+void Message::remove(Folder &f)
+{
+	folders.erase(&f);
+	f.remMsg(this);
+}
+void Message::add_to_Folders(const Message &m)
+{
+	for(auto f:m.folders)
+		f->addMsg(this);
+}
+void Message::remove_from_Folders()
+{
+	for(auto f:folders)
+		f->remMsg(this);
+}
+void Message::move_Folders(Message *m)
+{
+	folders=std::move(m->folders);
+	for(Folder *f:folders)
+	{
+		f->remMsg(m);
+		f->addMsg(this);
+	}
+	m->folders.clear();
+}
+Message::Message(const Message &m):contents(m.contents),folders(m.folders)
+{
+	add_to_Folders(m);
+}
+Message & Message::operator=(const Message &rhs)
+{
+	remove_from_Folders();
+	contents=rhs.contents;
+	folders=rhs.folders;
+	add_to_Folders(rhs);
+	return *this;
+}
+Message & Message::operator=(Message &&rhs)
+{
+	if(this!=&rhs)
+	{
+		remove_from_Folders();
+		contents=std::move(rhs.contents);
+		move_Folders(&rhs);
+	}
+	return *this;
+}
+Message::~Message()
+{
+	remove_from_Folders();
+}
+void swap(Message &lhs,Message &rhs)
+{
+	using std::swap;
+	for(auto f:lhs.folders)
+		f->remMsg(&lhs);
+	for(auto f:rhs.folders)
+		f->remMsg(&rhs);
+	swap(lhs.contents,rhs.contents);
+	swap(lhs.folders,rhs.folders);
+	for(auto f:lhs.folders)
+		f->addMsg(&lhs);
+	for(auto f:rhs.folders)
+		f->addMsg(&rhs);
+}
+
+
+
+void Folder::add_to_Messages(const Folder &f)
+{
+	for(auto m:f.messages)
+		m->addfolder(this);
+}
+void Folder::remove_from_Messages()
+{
+	for(auto m:messages)
+		m->folders.erase(this);
+}
+void Folder::move_Messages(Folder *f)
+{
+	messages=std::move(f->messages);
+	for(Message *m:messages)
+	{
+		m->remfolder(f);
+		m->addfolder(this);
+	}
+	f->messages.clear();
+}
+void Folder::save(Message &m)
+{
+	messages.insert(&m);
+	m.addfolder(this);
+}
+void Folder::remove(Message &m)
+{
+	messages.erase(&m);
+	m.remfolder(this);
+}
+Folder & Folder::operator=(const Folder &rhs)
+{
+	remove_from_Messages();
+	messages=rhs.messages;
+	add_to_Messages(rhs);
+	return *this;
+}
+Folder & Folder::operator=(Folder &&rhs)
+{
+	if(this!=&rhs)
+	{
+		remove_from_Messages();
+		move_Messages(&rhs);
+	}
+	return *this;
+}
+Folder::~Folder()
+{
+	remove_from_Messages();
+}
+```
+### 13.50
+[String代码见此](#4)
+==测试代码==
+```
+#include <iostream>
+#include <vector>
+#include "13-44/String.h"
+using namespace std;
+int main(void)
+{
+	vector<String> vs;
+	vs.reserve(6);
+	String a("a1"),b("b2"),c("c3");
+	vs.push_back(a);
+	vs.push_back(std::move(b));
+	vs.push_back(std::move(c));
+	vs.push_back(String("hi"));
+	vs.push_back("hello");
+	return 0;
+}
+```
+### 13.51
+它以值的方式返回一个unique_ptr或者返回一个局部对象的拷贝，返回的是右值，实际上执行的是它的移动构造函数。
+### 13.52
+`hp=std::move(hp2)`，首先std::move调用获得hp2的右值引用，HasPtr类的赋值运算符是传值类型的形参，所以调用移动构造函数构造rhs，完成后rhs内ps及i均为原hp2内的值，而hp2内ps指向NULL。此后对*this及rhs调用swap函数交换两个对象的值，返回*this，而rhs离开作用域，调用析构函数。
+### 13.53
+```
+#include <iostream>
+#include <string>
+#include <vector>
+#include <algorithm>
+class HasPtr
+{
+	friend void swap(HasPtr &,HasPtr &);
+	friend std::ostream & print(std::ostream &,const HasPtr &);
+	public:
+		HasPtr(const std::string &s=std::string()):pts(new std::string(s)) {}
+		HasPtr(const HasPtr &org):value(org.value),pts(new std::string(*org.pts)) {}
+		HasPtr(HasPtr &&org) noexcept :value(org.value),pts(org.pts) {org.pts=nullptr;}
+		HasPtr & operator=(const HasPtr &rhs) {std::string *tmp=new std::string(*rhs.pts);delete pts;pts=tmp;value=rhs.value;return *this;}
+		HasPtr & operator=(HasPtr &&rhs) noexcept;
+		bool operator<(const HasPtr &rhs) const {return *pts<*rhs.pts;}
+		~HasPtr() {delete pts;}
+	private:
+		int value=0;
+		std::string *pts;
+};
+inline HasPtr & HasPtr::operator=(HasPtr &&rhs) noexcept
+{
+	if(this!=&rhs)
+	{
+		delete pts;
+		pts=rhs.pts;
+		value=rhs.value;
+		rhs.pts=nullptr;
+	}
+	return *this;
+}
+inline void swap(HasPtr &lhs,HasPtr &rhs)
+{
+	using std::swap;
+	swap(lhs.value,rhs.value);
+	swap(lhs.pts,rhs.pts);
+}
+std::ostream & print(std::ostream &os,const HasPtr &hp)
+{
+	os<<*hp.pts<<std::endl;
+	return os;
+}
+```
+拷贝并交换版本中效率不理想的原因在于rhs是传值，不管是拷贝构造还是移动构造都要多进行一次。
+### 13.54
+```
+#include <iostream>
+#include <string>
+#include <vector>
+#include <algorithm>
+class HasPtr
+{
+	friend void swap(HasPtr &,HasPtr &);
+	friend std::ostream & print(std::ostream &,const HasPtr &);
+	public:
+		HasPtr(const std::string &s=std::string()):pts(new std::string(s)) {}
+		HasPtr(const HasPtr &org):value(org.value),pts(new std::string(*org.pts)) {}
+		HasPtr(HasPtr &&org) noexcept :value(org.value),pts(org.pts) {org.pts=nullptr;}
+		HasPtr & operator=(HasPtr rhs) {swap(*this,rhs);return *this;}
+		HasPtr & operator=(HasPtr &&rhs) noexcept;
+		bool operator<(const HasPtr &rhs) const {return *pts<*rhs.pts;}
+		~HasPtr() {delete pts;}
+	private:
+		int value=0;
+		std::string *pts;
+};
+inline HasPtr & HasPtr::operator=(HasPtr &&rhs) noexcept
+{
+	if(this!=&rhs)
+	{
+		delete pts;
+		pts=rhs.pts;
+		value=rhs.value;
+		rhs.pts=nullptr;
+	}
+	return *this;
+}
+inline void swap(HasPtr &lhs,HasPtr &rhs)
+{
+	using std::swap;
+	swap(lhs.value,rhs.value);
+	swap(lhs.pts,rhs.pts);
+}
+std::ostream & print(std::ostream &os,const HasPtr &hp)
+{
+	os<<*hp.pts<<std::endl;
+	return os;
+}
+int main(void)
+{
+    HasPtr h("hi mom!");
+    HasPtr h2(h);
+    HasPtr h3 = h;
+    h2 = h3;
+    h2 = std::move(h3);
+    return 0;
+}
+```
+无法通过编译，运算符重载存在二义性。
+### 13.55
+==StrBlob.h==
+```
+#ifndef STRBLOB_H
+#define STRBLOB_H
+#include <memory>
+#include <vector>
+#include <string>
+#include <initializer_list>
+#include <stdexcept>
+class StrBlobPtr;
+class StrBlob
+{
+friend class StrBlobPtr;
+public:
+	typedef std::vector<std::string>::size_type size_type;
+	StrBlob();
+	StrBlob(std::initializer_list<std::string> il);
+	
+	StrBlob(const StrBlob &);
+	StrBlob & operator=(const StrBlob &);
+
+	size_type size() const {return data->size();}
+	bool empty() const {return data->empty();}
+	void push_back(const std::string &t){data->push_back(t);}
+	void push_back(std::string &&t){data->push_back(std::move(t));}
+	void pop_back();
+	std::string &front();
+	std::string &back();
+	const std::string &front() const;
+	const std::string &back() const;
+	StrBlobPtr begin();
+	StrBlobPtr begin() const;
+	StrBlobPtr end();
+	StrBlobPtr end() const;
+private:
+	std::shared_ptr<std::vector<std::string>> data;
+	void check(size_type i,const std::string &msg) const;
+};
+class StrBlobPtr
+{
+public:
+	StrBlobPtr():curr(0){}
+	StrBlobPtr(StrBlob &a,std::size_t sz=0):wptr(a.data),curr(sz){}
+	StrBlobPtr(const StrBlob &a,std::size_t sz=0):wptr(a.data),curr(sz){}
+	std::string &deref() const;
+	StrBlobPtr &incr();
+private:
+	std::shared_ptr<std::vector<std::string>> check(std::size_t,const std::string &) const;
+	std::weak_ptr<std::vector<std::string>> wptr;
+	std::size_t curr=0;
+};
+#endif
+```
+==StrBlob.cpp==
+```
+#include "StrBlob.h"
+using namespace std;
+StrBlobPtr StrBlob::begin()
+{
+	return StrBlobPtr(*this);
+}
+StrBlobPtr StrBlob::begin() const
+{
+	return StrBlobPtr(*this);
+}
+StrBlobPtr StrBlob::end()
+{
+	return StrBlobPtr(*this,data->size());
+}
+StrBlobPtr StrBlob::end() const
+{
+	return StrBlobPtr(*this,data->size());
+}
+
+StrBlob::StrBlob():data(make_shared<vector<string>>()){}
+StrBlob::StrBlob(initializer_list<string> il):data(make_shared<vector<string>>(il)){}
+StrBlob::StrBlob(const StrBlob &org):data(make_shared<std::vector<std::string>>(*org.data)) {}
+StrBlob & StrBlob::operator=(const StrBlob &rhs)
+{
+	data=make_shared<std::vector<std::string>>(*rhs.data);
+	return *this;
+}
+inline void StrBlob::check(size_type i,const string &msg) const
+{
+	if(i>=data->size())
+		throw out_of_range(msg);
+}
+string &StrBlob::front()
+{
+	check(0,"front on empty StrBlob");
+	return data->front();
+}
+string &StrBlob::back()
+{
+	check(0,"back on empty StrBlob");
+	return data->back();
+}
+const std::string &StrBlob::front() const
+{
+	check(0,"front on empty StrBlob");
+	return data->front();
+}
+const std::string &StrBlob::back() const
+{
+	check(0,"back on empty StrBlob");
+	return data->back();
+}
+void StrBlob::pop_back()
+{
+	check(0,"pop_back on empty StrBlob");
+	data->pop_back();
+}
+
+std::shared_ptr<std::vector<std::string>> StrBlobPtr::check(std::size_t i,const std::string &msg) const
+{
+	auto ret=wptr.lock();
+	if(!ret)
+		throw std::runtime_error("unbound StrBlobPtr");
+	if(i>=ret->size())
+		throw std::out_of_range(msg);
+	return ret;
+}
+std::string & StrBlobPtr::deref() const
+{
+	auto p=check(curr,"dereference past end");
+	return (*p)[curr];
+}
+StrBlobPtr & StrBlobPtr::incr()
+{
+	check(curr,"increment past end of StrBlobPtr");
+	++curr;
+	return *this;
+}
+```
+### 13.56
+ret是左值，依然会调用sorted的左值版本，递归调用无法结束，最后导致栈溢出。
+### 13.57
+Foo(*this)是右值，会调用sorted的右值版本，排序正常完成。
+### 13.58
+```
+#include <iostream>
+#include <vector>
+#include <algorithm>
+using std::vector;
+class Foo
+{
+	public:
+		Foo sorted() &&;
+		Foo sorted() const &;
+	private:
+		std::vector<int> data;
+};
+Foo Foo::sorted() &&
+{
+	std::cout<<"右值引用版本"<<std::endl;
+	sort(data.begin(),data.end());
+	return *this;
+}
+#ifdef _A
+Foo Foo::sorted() const &
+{
+	std::cout<<"左值引用版本"<<std::endl;
+	Foo ret(*this);
+	return ret.sorted();
+}
+#else
+Foo Foo::sorted() const &
+{
+	std::cout<<"左值引用版本"<<std::endl;
+	return Foo(*this).sorted();
+}
+#endif
+int main(void)
+{
+	Foo a;
+	a.sorted();
+	return 0;
+}
+```

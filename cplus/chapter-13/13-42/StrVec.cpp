@@ -20,10 +20,27 @@ StrVec & StrVec::operator=(const StrVec &rhs)
 	first_free=cap=data.second;
 	return *this;
 }
+StrVec & StrVec::operator=(StrVec &&s) noexcept
+{
+	if(this!=&s)
+	{
+		free();
+		elements=s.elements;
+		first_free=s.first_free;
+		cap=s.cap;
+		s.elements=s.first_free=s.cap=nullptr;
+	}
+	return *this;
+}
 void StrVec::push_back(const std::string &s)
 {
 	chk_n_alloc();
 	alloc.construct(first_free++,s);
+}
+void StrVec::push_back(std::string &&s)
+{
+	chk_n_alloc();
+	alloc.construct(first_free++,std::move(s));
 }
 std::pair<std::string *,std::string *> StrVec::alloc_n_copy(const std::string *b,const std::string *e)
 {

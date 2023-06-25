@@ -10,7 +10,9 @@ class String
 		String():head(nullptr),tail(nullptr),cap(nullptr) {}
 		String(const char *);
 		String(const String &);
+		String(String &&str) noexcept :head(str.head),tail(str.tail),cap(str.cap) {str.head=str.tail=str.cap=nullptr;std::cout<<"This is move constructor."<<std::endl;}
 		String & operator=(const String &);
+		String & operator=(String &&);
 		String operator+(const String &);
 		~String() {free();}
 

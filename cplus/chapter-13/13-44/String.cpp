@@ -13,16 +13,31 @@ String::String(const char *str)
 }
 String::String(const String &s)
 {
+	std::cout<<"This is copy constructor."<<std::endl;
 	std::pair<char *,char *> newdata=alloc_n_copy(s.begin(),s.end());
 	head=newdata.first;
 	tail=cap=newdata.second;
 }
 String & String::operator=(const String &rhs)
 {
+	std::cout<<"This is copy assignment operator."<<std::endl;
 	std::pair<char *,char *> newdata=alloc_n_copy(rhs.begin(),rhs.end());
 	free();
 	head=newdata.first;
 	tail=cap=newdata.second;
+	return *this;
+}
+String & String::operator=(String &&rhs)
+{
+	std::cout<<"This is move assignment operator."<<std::endl;
+	if(this!=&rhs)
+	{
+		free();
+		head=rhs.head;
+		tail=rhs.tail;
+		cap=rhs.cap;
+		rhs.head=rhs.tail=rhs.cap=nullptr;
+	}
 	return *this;
 }
 String String::operator+(const String &rhs)
