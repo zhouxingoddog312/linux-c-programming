@@ -3,7 +3,7 @@
 - 不同点：重载运算符至少有一个类类型的运算对象。重载运算符实际上是具有特殊名字的函数，所以它无法保留内置运算符的求值顺序或短路求值属性。重载运算符有可能被定义成与内置运算符不一样的含义。
 - 相同点：重载运算符与内置运算符在运算对象数量、优先级和结合律等方面保持一致。
 ### 14.2
-==Sales_data.h==
+<a id="1">Sales_data.h</a>
 ```
 #include <iostream>
 #include <string>
@@ -80,4 +80,175 @@ $==$非成员函数
 $()$成员函数
 ### 14.5
 联系7.40中，编写的是Employee的框架，建议为其重载输入、输出运算符。
+### 14.6
+[见14.2](#1)
+### 14.7
+==String.h==
+```
+#ifndef _sTRING_H
+#define _sTRING_H
+#include <iostream>
+#include <utility>
+class String
+{
+	friend std::istream & operator>>(std::istream &in,String &str);
+	friend std::ostream & operator<<(std::ostream &out,const String &str);
+	public:
+		String():head(nullptr),tail(nullptr),cap(nullptr) {}
+		String(const char *);
+		String(const String &);
+		String(String &&str) noexcept :head(str.head),tail(str.tail),cap(str.cap) {str.head=str.tail=str.cap=nullptr;std::cout<<"This is move constructor."<<std::endl;}
+		String & operator=(const String &);
+		String & operator=(String &&);
+		String operator+(const String &);
+		~String() {free();}
 
+		size_t size() const {return tail-head;}
+		size_t capacity() const {return cap-head;}
+		bool empty() const {return (head==tail)?true:false;}
+		char * begin() const {return head;}
+		char * end() const {return tail;}
+	private:
+		char *head;
+		char *tail;
+		char *cap;
+		static std::allocator<char> alloc;
+		void free();
+
+		std::pair<char *,char *> alloc_n_copy(const char *,const char *);
+		void chk_n_alloc(size_t n) {if(n+size()>capacity()) reallocate(n);}
+		void reallocate(size_t n);
+};
+std::istream & operator>>(std::istream &in,String &str);
+std::ostream & operator<<(std::ostream &out,const String &str);
+#endif
+```
+==String.cpp==
+```
+#include <memory>
+#include <algorithm>
+#include <cstring>
+#include <string>
+#include "String.h"
+
+String::String(const char *str)
+{
+	size_t n=strlen(str);
+	std::pair<char *,char *> newdata=alloc_n_copy(str,str+n);
+	head=newdata.first;
+	tail=cap=newdata.second;
+}
+String::String(const String &s)
+{
+	std::cout<<"This is copy constructor."<<std::endl;
+	std::pair<char *,char *> newdata=alloc_n_copy(s.begin(),s.end());
+	head=newdata.first;
+	tail=cap=newdata.second;
+}
+String & String::operator=(const String &rhs)
+{
+	std::cout<<"This is copy assignment operator."<<std::endl;
+	std::pair<char *,char *> newdata=alloc_n_copy(rhs.begin(),rhs.end());
+	free();
+	head=newdata.first;
+	tail=cap=newdata.second;
+	return *this;
+}
+String & String::operator=(String &&rhs)
+{
+	std::cout<<"This is move assignment operator."<<std::endl;
+	if(this!=&rhs)
+	{
+		free();
+		head=rhs.head;
+		tail=rhs.tail;
+		cap=rhs.cap;
+		rhs.head=rhs.tail=rhs.cap=nullptr;
+	}
+	return *this;
+}
+String String::operator+(const String &rhs)
+{
+	String tmp(*this);
+	size_t n=rhs.size();
+	tmp.chk_n_alloc(n);
+	char *dest=tmp.tail;
+	char *src=rhs.begin();
+	for(size_t i=0;i!=6;++i)
+		alloc.construct(dest++,*src++);
+	tmp.tail=dest;
+	return tmp;
+}
+
+std::allocator<char> String::alloc;
+void String::free()
+{
+	if(head)
+	{
+		std::for_each(begin(),end(),[](char &c) {alloc.destroy(&c);});
+		alloc.deallocate(head,cap-head);
+	}
+}
+std::pair<char *,char *> String::alloc_n_copy(const char *b,const char *e)
+{
+	char *newdata=alloc.allocate(e-b);
+	return {newdata,std::uninitialized_copy(b,e,newdata)};
+}
+void String::reallocate(size_t n)
+{
+	size_t newcap=(size()>n?size()*2:n*2);
+	char *newdata=alloc.allocate(newcap);
+	char *dest=newdata;
+	char *src=head;
+	for(size_t i=0;i!=size();++i)
+		alloc.construct(dest++,std::move(*src++));
+	free();
+	head=newdata;
+	tail=dest;
+	cap=head+newcap;
+}
+std::istream & operator>>(std::istream &in,String &str)
+{
+	std::string tmp;
+	in>>tmp;
+	String Stmp(tmp.c_str());
+	str=Stmp;
+	return in;
+}
+std::ostream & operator<<(std::ostream &out,const String &str)
+{
+	std::for_each(str.begin(),str.end(),[&out](const char &c)->void {out<<c;});
+	return out;
+}
+```
+### 14.8
+==Employee.h==
+```
+#ifndef _EMPLOYEE_H
+#define _EMPLOYEE_H
+#include <iostream>
+class Employee
+{
+	friend std::ostream & operator<<(std::ostream &,const Employee &);
+	public:
+		Employee()=default;
+		Employee(std::string s):name(s){}
+		Employee(std::string s,unsigned int i,double j,unsigned int k):name(s),Age(i),salary(j),Phone_Number(k){}
+	private:
+		std::string name;
+		unsigned int Age=0;
+		double salary=0;
+		unsigned int Phone_Number=0;
+};
+std::ostream & operator<<(std::ostream &,const Employee &);
+#endif
+```
+==Employee.cpp==
+```
+#include "Employee.h"
+std::ostream & operator<<(std::ostream &os,const Employee &src)
+{
+	os<<src.name<<" "<<src.Age<<" "<<src.salary<<" "<<src.Phone_Number;
+	return os;
+}
+```
