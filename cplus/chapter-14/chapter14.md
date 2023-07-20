@@ -42,7 +42,10 @@ std::istream & operator>>(std::istream &is,Sales_data &src)
 {
 	double price=0.0;
 	is>>src.bookNo>>src.units_sold>>price;
-	src.revenue=src.units_sold*price;
+	if(is)
+		src.revenue=src.units_sold*price;
+	else
+		src=Sales_data();
 	return is;
 }
 std::ostream & operator<<(std::ostream &os,const Sales_data &src)
@@ -222,7 +225,7 @@ std::ostream & operator<<(std::ostream &out,const String &str)
 }
 ```
 ### 14.8
-==Employee.h==
+<a id="2">Employee.h</a>
 ```
 #ifndef _EMPLOYEE_H
 #define _EMPLOYEE_H
@@ -230,6 +233,7 @@ std::ostream & operator<<(std::ostream &out,const String &str)
 class Employee
 {
 	friend std::ostream & operator<<(std::ostream &,const Employee &);
+	friend std::istream & operator>>(std::istream &,Employee &);
 	public:
 		Employee()=default;
 		Employee(std::string s):name(s){}
@@ -241,6 +245,7 @@ class Employee
 		unsigned int Phone_Number=0;
 };
 std::ostream & operator<<(std::ostream &,const Employee &);
+std::istream & operator>>(std::istream &,Employee &);
 #endif
 ```
 ==Employee.cpp==
@@ -251,4 +256,110 @@ std::ostream & operator<<(std::ostream &os,const Employee &src)
 	os<<src.name<<" "<<src.Age<<" "<<src.salary<<" "<<src.Phone_Number;
 	return os;
 }
+std::istream & operator>>(std::istream &is,Employee &src)
+{
+	is>>src.name>>src.Age>>src.salary>>src.Phone_Number;
+	if(!is)
+		src=Employee();
+	return is;
+}
 ```
+### 14.9
+[见14.2](#1)
+### 14.10
+1. 输入正确，可以得到输入中的正确数据
+2. 输入错误，可以得到默认值的Sales_data对象
+### 14.11
+此重载的输入运算符没有判断输入失败的情况，在输入失败时，bookNo、units_sold、price都可能是非法数据，由此得到非法的Sales_data对象。这个输入运算符如果仍然给定上个练习的输入，那么第一个输入仍将得到合法的对象，而第二个输入会得到非法的对象。
+### 14.12
+[见14.8](#2)
+### 14.13
+对于Sales_data类，其它的算术运算符没有明确的意义
+### 14.14
+因为operator+本来就是返回的值，所以使用operator+=并不会有性能上的损失，同时具有较高的可读性.
+### 14.15
+Employee类的信息是雇员的名字、年纪、收入、电话，算术运算符对其没有明确的意义，故不应该含有其他算术运算符。
+### 14.16
+
+### 14.17
+
+### 14.18
+
+### 14.19
+Employee类可以按雇员的名字、年龄、收入、电话号码比较，所以不存在一种逻辑可靠的<定义，所以它不应该含有关系运算符。
+### 14.20
+[见14.2](#1)
+### 14.21
+我感觉缺点不明显，性能上并没有什么损失，可读性？
+==Sales_data.h==
+```
+#include <iostream>
+#include <string>
+class Sales_data
+{
+	friend std::istream & operator>>(std::istream &,Sales_data &);
+	friend std::ostream & operator<<(std::ostream &,const Sales_data &);
+	friend Sales_data operator+(const Sales_data &,const Sales_data &);
+	public:
+		std::string isbn() const {return bookNo;}
+		Sales_data()=default;
+		Sales_data(const std::string &s):bookNo(s) {}
+		Sales_data(const std::string &s,unsigned n,double p):bookNo(s),units_sold(n),revenue(n*p) {}
+		Sales_data & operator+=(const Sales_data &);
+	private:
+		std::string bookNo;
+		unsigned units_sold=0;
+		double revenue=0.0;
+		double avg_price() const;
+};
+std::istream & operator>>(std::istream &,Sales_data &);
+std::ostream & operator<<(std::ostream &,const Sales_data &);
+Sales_data operator+(const Sales_data &,const Sales_data &);
+```
+==Sales_data.cpp==
+```
+#include "Sales_data.h"
+inline double Sales_data::avg_price() const
+{
+	if(units_sold)
+		return revenue/units_sold;
+	else
+		return 0;
+}
+std::istream & operator>>(std::istream &is,Sales_data &src)
+{
+	double price=0.0;
+	is>>src.bookNo>>src.units_sold>>price;
+	if(is)
+		src.revenue=src.units_sold*price;
+	else
+		src=Sales_data();
+	return is;
+}
+std::ostream & operator<<(std::ostream &os,const Sales_data &src)
+{
+	os<<src.isbn()<<" "<<src.units_sold<<" "<<src.revenue<<" "<<src.avg_price();
+	return os;
+}
+Sales_data & Sales_data::operator+=(const Sales_data & rhs)
+{
+	*this=*(this)+rhs;
+	return *this;
+}
+Sales_data operator+(const Sales_data &lhs,const Sales_data &rhs)
+{
+	Sales_data tmp;
+	tmp.bookNo=lhs.bookNo;
+	tmp.units_sold=lhs.units_sold+rhs.units_sold;
+	tmp.revenue=lhs.revenue+rhs.revenue;
+	return tmp;
+}
+```
+### 14.22
+
+### 14.23
+
+### 14.24
+
+### 14.25
+需要定义一个运算对象为string的赋值运算符，可以直接为雇员的名字赋值.

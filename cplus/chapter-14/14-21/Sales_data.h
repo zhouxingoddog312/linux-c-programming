@@ -11,7 +11,6 @@ class Sales_data
 		Sales_data(const std::string &s):bookNo(s) {}
 		Sales_data(const std::string &s,unsigned n,double p):bookNo(s),units_sold(n),revenue(n*p) {}
 		Sales_data & operator+=(const Sales_data &);
-		Sales_data & operator=(const std::string &);
 	private:
 		std::string bookNo;
 		unsigned units_sold=0;

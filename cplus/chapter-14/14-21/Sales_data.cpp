@@ -23,19 +23,14 @@ std::ostream & operator<<(std::ostream &os,const Sales_data &src)
 }
 Sales_data & Sales_data::operator+=(const Sales_data & rhs)
 {
-	units_sold+=rhs.units_sold;
-	revenue+=rhs.revenue;
-	return *this;
-}
-Sales_data & Sales_data::operator=(const std::string &isbn)
-{
-	bookNo=isbn;
+	*this=*(this)+rhs;
 	return *this;
 }
 Sales_data operator+(const Sales_data &lhs,const Sales_data &rhs)
 {
 	Sales_data tmp;
-	tmp=lhs;
-	tmp+=rhs;
+	tmp.bookNo=lhs.bookNo;
+	tmp.units_sold=lhs.units_sold+rhs.units_sold;
+	tmp.revenue=lhs.revenue+rhs.revenue;
 	return tmp;
 }
