@@ -363,3 +363,11 @@ Sales_data operator+(const Sales_data &lhs,const Sales_data &rhs)
 
 ### 14.25
 需要定义一个运算对象为string的赋值运算符，可以直接为雇员的名字赋值.
+### 14.26
+
+### 14.27
+
+### 14.28
+
+### 14.29
+因为递增、递减运算符要改变所操作对象的状态，所以不能使用const修饰符。

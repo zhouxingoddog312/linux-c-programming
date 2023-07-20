@@ -62,9 +62,16 @@ public:
 	StrBlobPtr(const StrBlob &a,std::size_t sz=0):wptr(a.data),curr(sz){}
 	std::string & operator[](std::size_t i) {auto p=check(i,"index is out of range");return p->at(i);}
 	const std::string & operator[](std::size_t i) const {auto p=check(i,"index is out of range");return p->at(i);}
+	StrBlobPtr & operator++();
+	StrBlobPtr operator++(int);
+	StrBlobPtr & operator--();
+	StrBlobPtr operator--(int);
+	StrBlobPtr operator+(std::size_t) const;
+	StrBlobPtr operator-(std::size_t) const;
+	StrBlobPtr & operator+=(std::size_t);
+	StrBlobPtr & operator-=(std::size_t);
 
 	std::string &deref() const;
-	StrBlobPtr &incr();
 private:
 	std::shared_ptr<std::vector<std::string>> check(std::size_t,const std::string &) const;
 	std::weak_ptr<std::vector<std::string>> wptr;

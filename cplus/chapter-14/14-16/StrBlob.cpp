@@ -94,10 +94,52 @@ std::string & StrBlobPtr::deref() const
 	auto p=check(curr,"dereference past end");
 	return (*p)[curr];
 }
-StrBlobPtr & StrBlobPtr::incr()
+StrBlobPtr & StrBlobPtr::operator++()
 {
 	check(curr,"increment past end of StrBlobPtr");
 	++curr;
+	return *this;
+}
+StrBlobPtr StrBlobPtr::operator++(int)
+{
+	StrBlobPtr ret=*this;
+	++*this;
+	return ret;
+}
+StrBlobPtr & StrBlobPtr::operator--()
+{
+	--curr;
+	check(curr,"decrement past the begin of StrBlobPtr");
+	return *this;
+}
+StrBlobPtr StrBlobPtr::operator--(int)
+{
+	StrBlobPtr ret=*this;
+	--*this;
+	return ret;
+}
+StrBlobPtr StrBlobPtr::operator+(std::size_t i) const
+{
+	StrBlobPtr ret(*this);
+	ret+=i;
+	return ret;
+}
+StrBlobPtr StrBlobPtr::operator-(std::size_t i) const
+{
+	StrBlobPtr ret(*this);
+	ret-=i;
+	return ret;
+}
+StrBlobPtr & StrBlobPtr::operator+=(std::size_t i)
+{
+	while(i--)
+		++*this;
+	return *this;
+}
+StrBlobPtr & StrBlobPtr::operator-=(std::size_t i)
+{
+	check(curr-i,"decrement past begin of range");
+	curr-=i;
 	return *this;
 }
 bool operator==(const StrBlobPtr &lhs,const StrBlobPtr &rhs)
