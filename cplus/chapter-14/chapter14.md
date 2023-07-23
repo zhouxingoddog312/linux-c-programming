@@ -371,3 +371,244 @@ Sales_data operator+(const Sales_data &lhs,const Sales_data &rhs)
 
 ### 14.29
 因为递增、递减运算符要改变所操作对象的状态，所以不能使用const修饰符。
+### 14.30
+
+### 14.31
+因为StrBlobPtr的数据成员是由一个weak_ptr和一个内置类型组成，它们都能被合成的拷贝控制成员正确的处理。
+### 14.32
+==PtStrBlobPtr.h==
+```
+#ifndef _PTSTRBLOBPTR_H
+#define _PTSTRBLOBPTR_H
+#include "StrBlob.h"
+class PtStrBlobPtr
+{
+	public:
+		PtStrBlobPtr()=default;
+		PtStrBlobPtr(StrBlobPtr *p):ptbp(p) {}
+		StrBlobPtr & operator*() const {return *ptbp;}
+		StrBlobPtr * operator->() const {return & this->operator*();}
+	private:
+		StrBlobPtr * ptbp=nullptr;
+};
+#endif
+```
+==PtStrBlobPtr.cpp==
+```
+#include "PtStrBlobPtr.h"
+```
+### 14.33
+因为重载的函数调用运算符可接受的参数是不一定的，所以它应该接受几个运算对象不确定。
+### 14.34
+```
+#include <iostream>
+struct func
+{
+	int operator()(int a,int b,int c) { return a>0?b:c;}
+};
+int main(void)
+{
+	func f;
+	std::cout<<f(-1,2,3)<<std::endl;
+	return 0;
+}
+```
+### 14.35
+```
+#include <iostream>
+#include <string>
+struct func
+{
+	std::string operator()()
+	{
+		std::string tmp;
+		getline(std::cin,tmp);
+		return tmp;
+	}
+};
+int main(void)
+{
+	func f;
+	std::cout<<f()<<std::endl;
+	return 0;
+}
+```
+### 14.36
+```
+#include <iostream>
+#include <string>
+#include <vector>
+using std::string;
+using std::vector;
+using std::cin;
+using std::cout;
+using std::endl;
+struct func
+{
+	std::string operator()()
+	{
+		std::string tmp;
+		getline(std::cin,tmp);
+		return tmp;
+	}
+};
+int main(void)
+{
+	vector<string> svec;
+	func f;
+	while(cin)
+		svec.push_back(f());
+	for(const auto a:svec)
+		cout<<a<<endl;
+	return 0;
+}
+```
+### 14.37
+```
+#include <iostream>
+#include <vector>
+#include <algorithm>
+#include <iterator>
+using namespace std;
+class func
+{
+	public:
+		func(int tg=0):targ(tg) {}
+		bool operator()(int rec) {return rec==targ;}
+	private:
+		int targ=0;
+};
+int main(void)
+{
+	func f(1);
+	vector<int> a{0,1,2,1,3,4,5},b;
+	replace_copy_if(a.begin(),a.end(),back_inserter(b),f,99);
+	for(auto r:b)
+		cout<<r<<endl;
+	return 0;
+}
+```
+### 14.38
+```
+#include <iostream>
+#include <string>
+#include <fstream>
+using namespace std;
+class func
+{
+	public:
+		func(size_t n):sz(n) {}
+		bool operator()(const string &str) {return str.size()==sz;}
+	private:
+		size_t sz=0;
+};
+int main(int argc,char *argv[])
+{
+	string tmp;
+	size_t wl1=0,wl2=0,wl10=0;
+	func f1(1),f2(2),f10(10);
+	ifstream  in(argv[1]);
+	while(in>>tmp)
+	{
+		if(f1(tmp))
+			++wl1;
+		if(f2(tmp))
+			++wl2;
+		if(f10(tmp))
+			++wl10;
+	}
+	in.close();
+	cout<<"长度为1的单词有"<<wl1<<" 长度为2的单词有"<<wl2<<" 长度为10的单词有"<<wl10<<endl;
+	return 0;
+}
+```
+### 14.39
+```
+#include <iostream>
+#include <string>
+#include <fstream>
+using namespace std;
+class func
+{
+	public:
+		func(size_t n):sz(n) {}
+		bool operator()(const string &str) {return str.size()>sz;}
+	private:
+		size_t sz=0;
+};
+int main(int argc,char *argv[])
+{
+	string tmp;
+	size_t wl1=0,wl2=0,wl10=0;
+	func f1(0),f2(9),f10(10);
+	ifstream  in(argv[1]);
+	while(in>>tmp)
+	{
+		if(f1(tmp))
+			++wl1;
+		if(f2(tmp))
+			++wl2;
+		if(f10(tmp))
+			++wl10;
+	}
+	in.close();
+	cout<<"长度为1-9的单词有"<<wl1-wl2<<" 长度大于10的单词有"<<wl10<<endl;
+	return 0;
+}
+```
+### 14-40
+```
+#include <iostream>
+#include <vector>
+#include <string>
+#include <algorithm>
+using namespace std;
+struct func1
+{
+	bool operator()(const string &str1,const string &str2) {return str1.size()<str2.size();}
+};
+class func2
+{
+	public:
+		func2(size_t n):sz(n) {}
+		bool operator()(const string &str) {return str.size()>=sz;}
+	private:
+		size_t sz;
+};
+struct func3
+{
+	void operator()(const string &str) {cout<<str<<" ";}
+};
+void elimDups(vector<string> &s)
+{
+	sort(s.begin(),s.end());
+	auto end_unique=unique(s.begin(),s.end());
+	s.erase(end_unique,s.end());
+}
+string make_plural(size_t count,const string &word,const string &end)
+{
+	return (count>1)?(word+end):word;
+}
+void biggies(vector<string> &words,vector<string>::size_type sz)
+{
+	elimDups(words);
+	stable_sort(words.begin(),words.end(),func1());
+	auto wc=find_if(words.begin(),words.end(),func2(sz));
+	auto count=words.end()-wc;
+	cout<<count<<" "<<make_plural(count,"word","s")<<" of length "<<sz<<" or longer "<<endl;
+	for_each(wc,words.end(),func3());
+	cout<<endl;
+}
+int main(void)
+{
+	string tmp;
+	vector<string> svec;
+	cout<<"Enter some strings: ";
+	while(cin>>tmp)
+		svec.push_back(tmp);
+	biggies(svec,3);
+	return 0;
+}
+```
+### 14.41
+lambda就是匿名的函数对象，当这个函数对象只在少数地方使用，并且函数体足够简单时，适合使用lambda表达式。而这个函数对象需要多次复用，并且函数体较复杂时，使用类。

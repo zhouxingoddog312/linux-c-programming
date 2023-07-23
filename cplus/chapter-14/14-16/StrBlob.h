@@ -70,6 +70,8 @@ public:
 	StrBlobPtr operator-(std::size_t) const;
 	StrBlobPtr & operator+=(std::size_t);
 	StrBlobPtr & operator-=(std::size_t);
+	std::string & operator*() const;
+	std::string * operator->() const;
 
 	std::string &deref() const;
 private:

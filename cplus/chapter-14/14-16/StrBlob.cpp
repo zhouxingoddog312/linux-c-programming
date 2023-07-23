@@ -142,6 +142,15 @@ StrBlobPtr & StrBlobPtr::operator-=(std::size_t i)
 	curr-=i;
 	return *this;
 }
+std::string & StrBlobPtr::operator*() const
+{
+	auto p=check(curr,"dereference past end");
+	return (*p)[curr];
+}
+std::string * StrBlobPtr::operator->() const
+{
+	return & this->operator*();
+}
 bool operator==(const StrBlobPtr &lhs,const StrBlobPtr &rhs)
 {
 	auto l=lhs.wptr.lock();
