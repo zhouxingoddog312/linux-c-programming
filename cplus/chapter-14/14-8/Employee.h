@@ -14,6 +14,7 @@ class Employee
 		Employee & operator=(const Employee &);
 		Employee & operator=(Employee &&);
 		Employee & operator=(const std::string &);
+		operator bool()  const {return !(name.empty());}
 	private:
 		std::string name;
 		unsigned int Age=0;
