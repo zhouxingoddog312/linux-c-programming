@@ -607,3 +607,74 @@ AndQuery5-->WordQuery7
 因为Query类未定义自己的控制成员函数，并且其只有一个shared_ptr类型的数据成员,所以Query类型的对象被拷贝、移动、赋值或销毁时，会调用shared_ptr类型相应的控制成员。
 ### 15.33
 因为Query_base类是一个抽象基类，我们不能直接创建一个抽象基类的对象，实际上在它的派生类对象被创建时，它才会作为其基类部分被创建。同时它没有定义控制成员函数，又不含数据成员，所以它在被拷贝、移动、赋值或销毁时会执行默认语义，什么都不做。
+### 15.34
+1.
+WordQuery(const std::string &) $\rightarrow$ fiery
+Query(const std::string &) $\rightarrow$ fiery
+WordQuery(const std::string &) $\rightarrow$ bird
+Query(const std::string &) $\rightarrow$ bird
+BinaryQuery(const Query &,const Query &,std::string) $\rightarrow$ (fiery,bird,&)
+AndQuery(const Query &,const Query &) $\rightarrow$ (fiery,bird)
+Query(std::shared_ptr<Query_base>)
+WordQuery(const std::string &) $\rightarrow$ wind
+Query(const std::string &) $\rightarrow$ wind
+BinaryQuery(const Query &,const Query &,std::string) $\rightarrow$ ((fiery & bird),wind,|)
+OrQuery(const Query &,const Query &) $\rightarrow$ ((fiery & bird),wind)
+Query(std::shared_ptr<Query_base>)
+2.
+Query::rep
+BinaryQuery::rep
+Query::rep
+WordQuery::rep
+Query::rep
+BinaryQuery::rep
+Query::rep
+WordQuery::rep
+Query::rep
+WordQuery::rep
+3.
+Query::eval
+OrQuery::eval
+Query::eval
+WordQuery::eval
+Query::eval
+AndQuery::eval
+Query::eval
+WordQuery::eval
+Query::eval
+WordQuery::eval
+### 15.35
+```
+class Query_base
+{
+	friend class Query;
+	protected:
+		using line_no=TextQuery::line_no;
+		virtual ~Query_base()=default;
+	private:
+		virtual QueryResult eval(const TextQuery &) const=0;
+		virtual std::string rep() const=0;
+};
+class Query
+{
+	friend Query operator~(const Query &);
+	friend Query operator&(const Query &,const Query &);
+	friend Query operator|(const Query &,const Query &);
+	public:
+		Query(const std::string &);
+		QueryResult eval(const TextQuery &t) const {return q->eval(t);}
+		std::string rep() const {return q->rep();}
+	private:
+		Query(std::shared_ptr<Query_base> query):q(query) {}
+		std::shared_ptr<Query_base> q;
+};
+```
+### 15.36
+
+
+### 15.37
+仅把派生类中的Query类型数据成员改成shared_ptr<Query_base>类型成员的话，影响并不大，因为Query类本来就有接受智能指针的构造函数，必要的地方手动类型转换即可。
+### 15.38
+- 不合法，不能直接创建抽象基类的对象。
+- 不合法，AndQuery没有接受Query参数的构造函数。
+- 不合法，OrQuery没有接受Query参数的构造函数。
