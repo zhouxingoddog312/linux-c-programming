@@ -69,7 +69,7 @@ class WordQuery:public Query_base
 		std::string query_word;
 };
 
-inline Query::Query(const std::string &s):q(new Word_query(s)) {}
+inline Query::Query(const std::string &s):q(new WordQuery(s)) {}
 
 class NotQuery:public Query_base
 {
@@ -91,7 +91,7 @@ class BinaryQuery:public Query_base
 };
 class AndQuery:public BinaryQuery
 {
-	friend Query operator&(const &Query,const &Query);
+	friend Query operator&(const Query&,const Query&);
 	private:
 		AndQuery(const Query &left,const Query &right):BinaryQuery(left,right,"&") {}
 		virtual QueryResult eval(const TextQuery &) const;
@@ -105,4 +105,5 @@ class OrQuery:public BinaryQuery
 		virtual QueryResult eval(const TextQuery &) const;
 };
 inline Query operator|(const Query &left,const Query &right) {return std::shared_ptr<Query_base>(new OrQuery(left,right));}
+inline std::ostream & operator<<(std::ostream &os,const Query &q) {return os<<q.rep();}
 #endif
