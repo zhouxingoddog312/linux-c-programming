@@ -885,4 +885,442 @@ int main(int argc,char *argv[])
 ### 15.40
 set的构造函数和insert成员函数都可以正确处理空范围的情况，这种情况下得到的QueryResult的lines成员指向的set也将是空的。
 ### 15.41
+==Query.h==
+```
+#ifndef _QUERY_H
+#define _QUERY_H
+#include <iostream>
+#include <string>
+#include <vector>
+#include <map>
+#include <set>
+#include <memory>
+#include <fstream>
+class QueryResult;
+class TextQuery
+{
+	public:
+		using line_no=std::vector<std::string>::size_type;
+		TextQuery(std::ifstream &);
+		QueryResult query(const std::string &) const;
+	private:
+		std::shared_ptr<std::vector<std::string>> file;
+		std::map<std::string,std::shared_ptr<std::set<line_no>>> wm;
+};
+class QueryResult
+{
+	friend std::ostream &print(std::ostream &,const QueryResult &);
+	public:
+		QueryResult(std::string s,std::shared_ptr<std::set<std::vector<std::string>::size_type>> l,std::shared_ptr<std::vector<std::string>> f):sought(s),lines(l),file(f){}
+		std::set<std::vector<std::string>::size_type>::iterator begin() const {return lines->begin();}
+		std::set<std::vector<std::string>::size_type>::iterator end() const {return lines->end();}
+		std::shared_ptr<std::vector<std::string>> get_file(){return file;}
+	private:
+		std::string sought;
+		std::shared_ptr<std::set<std::vector<std::string>::size_type>> lines;
+		std::shared_ptr<std::vector<std::string>> file;
+};
+std::ostream &print(std::ostream &,const QueryResult &);
+inline std::string make_plural(std::size_t count,const std::string &word,const std::string &ending)
+{
+	return (count>1)?word+ending:word;
+}
+class Query_base
+{
+	friend class Query;
+	protected:
+		using line_no=TextQuery::line_no;
+		virtual ~Query_base()=default;
+	private:
+		virtual QueryResult eval(const TextQuery &) const=0;
+		virtual std::string rep() const=0;
+};
+class Query
+{
+	friend Query operator~(const Query &);
+	friend Query operator&(const Query &,const Query &);
+	friend Query operator|(const Query &,const Query &);
+	public:
+		Query(const std::string &);
+		
+		Query(const Query &rhs):q(rhs.q),reference_count(rhs.reference_count) {++*reference_count;}
+		Query & operator=(const Query &);
+		~Query();
+
+		QueryResult eval(const TextQuery &t) const {return q->eval(t);}
+		std::string rep() const {return q->rep();}
+	private:
+		Query(Query_base *query):q(query),reference_count(new std::size_t(1)) {}
+		Query_base *q;
+		std::size_t *reference_count;
+};
+class WordQuery:public Query_base
+{
+	friend class Query;
+	private:
+		WordQuery(const std::string &s):query_word(s) {}
+		virtual QueryResult eval(const TextQuery &t) const {return t.query(query_word);}
+		virtual std::string rep() const {return query_word;}
+		std::string query_word;
+};
+
+inline Query::Query(const std::string &s):q(new WordQuery(s)),reference_count(new std::size_t(1)) {}
+
+class NotQuery:public Query_base
+{
+	friend Query operator~(const Query &);
+	private:
+		NotQuery(const Query &q):query(q) {}
+		virtual QueryResult eval(const TextQuery &) const;
+		virtual std::string rep() const {return "~("+query.rep()+")";}
+		Query query;
+};
+inline Query operator~(const Query &q) {return new NotQuery(q);}
+class BinaryQuery:public Query_base
+{
+	protected:
+		BinaryQuery(const Query &left,const Query &right,const std::string &s):lhs(left),rhs(right),opSym(s) {}
+		virtual std::string rep() const {return "("+lhs.rep()+" "+opSym+" "+rhs.rep()+")";}
+		Query lhs,rhs;
+		std::string opSym;
+};
+class AndQuery:public BinaryQuery
+{
+	friend Query operator&(const Query&,const Query&);
+	private:
+		AndQuery(const Query &left,const Query &right):BinaryQuery(left,right,"&") {}
+		virtual QueryResult eval(const TextQuery &) const;
+};
+inline Query operator&(const Query &left,const Query &right) {return new AndQuery(left,right);}
+class OrQuery:public BinaryQuery
+{
+	friend Query operator|(const Query &,const Query &);
+	private:
+		OrQuery(const Query &left,const Query &right):BinaryQuery(left,right,"|") {}
+		virtual QueryResult eval(const TextQuery &) const;
+};
+inline Query operator|(const Query &left,const Query &right) {return new OrQuery(left,right);}
+inline std::ostream & operator<<(std::ostream &os,const Query &q) {return os<<q.rep();}
+#endif
+```
+==Query.cpp==
+```
+#include <sstream>
+#include <algorithm>
+#include <cctype>
+#include "Query.h"
+TextQuery::TextQuery(std::ifstream &infile):file(new std::vector<std::string>)
+{
+	std::string text;
+	while(getline(infile,text))
+	{
+		file->push_back(text);
+		std::size_t line_number=file->size()-1;
+		std::istringstream line(text);
+		std::string word;
+		while(line>>word)
+		{
+			std::string key_word;
+			for(auto c:word)
+			{
+				if(!ispunct(c))
+					key_word+=c;
+			}
+			std::shared_ptr<std::set<line_no>> &lines=wm[key_word];
+			if(!lines)
+				lines.reset(new std::set<line_no>);
+			lines->insert(line_number);
+		}
+	}
+}
+QueryResult TextQuery::query(const std::string &sought) const
+{
+	static std::shared_ptr<std::set<line_no>> nodata(new std::set<line_no>);
+	std::map<std::string,std::shared_ptr<std::set<line_no>>>::const_iterator map_it=wm.find(sought);
+	if(map_it==wm.end())
+		return QueryResult(sought,nodata,file);
+	else
+		return QueryResult(sought,map_it->second,file);
+}
+
+std::ostream &print(std::ostream &os,const QueryResult &qr)
+{
+	os<<"Executing Query for: "<<qr.sought<<std::endl;
+	os<<qr.sought<<" occurs "<<qr.lines->size()<<" "<<make_plural(qr.lines->size(),"time","s")<<std::endl;
+	for(auto num:*(qr.lines))
+		os<<"\t(line "<<num+1<<") "<<*(qr.file->begin()+num)<<std::endl;
+	return os;
+}
+Query & Query::operator=(const Query &rhs)
+{
+	++*rhs.reference_count;
+	if(--*reference_count==0)
+	{
+		delete q;
+		delete reference_count;
+	}
+	q=rhs.q;
+	reference_count=rhs.reference_count;
+	return *this;
+}
+Query::~Query()
+{
+	if(--*reference_count==0)
+	{
+		delete q;
+		delete reference_count;
+	}
+}
+QueryResult NotQuery::eval(const TextQuery &text) const
+{
+	auto result=query.eval(text);
+	auto beg=result.begin(),end=result.end();
+	auto ret_lines=std::make_shared<std::set<line_no>>();
+	auto sz=result.get_file()->size();
+	for(std::size_t n=0;n!=sz;++n)
+	{
+		if(beg==end||*beg!=n)
+			ret_lines->insert(n);
+		else if(beg!=end)
+			++beg;
+	}
+	return QueryResult(rep(),ret_lines,result.get_file());
+}
+QueryResult OrQuery::eval(const TextQuery &text) const
+{
+	auto left=lhs.eval(text),right=rhs.eval(text);
+	auto ret_lines=std::make_shared<std::set<line_no>>(left.begin(),left.end());
+	ret_lines->insert(right.begin(),right.end());
+	return QueryResult(rep(),ret_lines,left.get_file());
+}
+QueryResult AndQuery::eval(const TextQuery &text) const
+{
+	auto left=lhs.eval(text),right=rhs.eval(text);
+	auto ret_lines=std::make_shared<std::set<line_no>>();
+	set_intersection(left.begin(),left.end(),right.begin(),right.end(),inserter(*ret_lines,ret_lines->begin()));
+	return QueryResult(rep(),ret_lines,left.get_file());
+}
+```
 ### 15.42
+按句子查询并打印单词，而不再是按行打印。
+==Query.h==
+```
+#ifndef _QUERY_H
+#define _QUERY_H
+#include <iostream>
+#include <string>
+#include <vector>
+#include <map>
+#include <set>
+#include <memory>
+#include <fstream>
+class QueryResult;
+class TextQuery
+{
+	public:
+		using line_no=std::vector<std::string>::size_type;
+		TextQuery(std::ifstream &);
+		QueryResult query(const std::string &) const;
+	private:
+		std::shared_ptr<std::vector<std::string>> file;
+		std::map<std::string,std::shared_ptr<std::set<line_no>>> wm;
+};
+class QueryResult
+{
+	friend std::ostream &print(std::ostream &,const QueryResult &);
+	public:
+		QueryResult(std::string s,std::shared_ptr<std::set<std::vector<std::string>::size_type>> l,std::shared_ptr<std::vector<std::string>> f):sought(s),lines(l),file(f){}
+		std::set<std::vector<std::string>::size_type>::iterator begin() const {return lines->begin();}
+		std::set<std::vector<std::string>::size_type>::iterator end() const {return lines->end();}
+		std::shared_ptr<std::vector<std::string>> get_file(){return file;}
+	private:
+		std::string sought;
+		std::shared_ptr<std::set<std::vector<std::string>::size_type>> lines;
+		std::shared_ptr<std::vector<std::string>> file;
+};
+std::ostream &print(std::ostream &,const QueryResult &);
+inline std::string make_plural(std::size_t count,const std::string &word,const std::string &ending)
+{
+	return (count>1)?word+ending:word;
+}
+class Query_base
+{
+	friend class Query;
+	protected:
+		using line_no=TextQuery::line_no;
+		virtual ~Query_base()=default;
+	private:
+		virtual QueryResult eval(const TextQuery &) const=0;
+		virtual std::string rep() const=0;
+};
+class Query
+{
+	friend Query operator~(const Query &);
+	friend Query operator&(const Query &,const Query &);
+	friend Query operator|(const Query &,const Query &);
+	public:
+		Query(const std::string &);
+		
+		Query(const Query &rhs):q(rhs.q),reference_count(rhs.reference_count) {++*reference_count;}
+		Query & operator=(const Query &);
+		~Query();
+
+		QueryResult eval(const TextQuery &t) const {return q->eval(t);}
+		std::string rep() const {return q->rep();}
+	private:
+		Query(Query_base *query):q(query),reference_count(new std::size_t(1)) {}
+		Query_base *q;
+		std::size_t *reference_count;
+};
+class WordQuery:public Query_base
+{
+	friend class Query;
+	private:
+		WordQuery(const std::string &s):query_word(s) {}
+		virtual QueryResult eval(const TextQuery &t) const {return t.query(query_word);}
+		virtual std::string rep() const {return query_word;}
+		std::string query_word;
+};
+
+inline Query::Query(const std::string &s):q(new WordQuery(s)),reference_count(new std::size_t(1)) {}
+
+class NotQuery:public Query_base
+{
+	friend Query operator~(const Query &);
+	private:
+		NotQuery(const Query &q):query(q) {}
+		virtual QueryResult eval(const TextQuery &) const;
+		virtual std::string rep() const {return "~("+query.rep()+")";}
+		Query query;
+};
+inline Query operator~(const Query &q) {return new NotQuery(q);}
+class BinaryQuery:public Query_base
+{
+	protected:
+		BinaryQuery(const Query &left,const Query &right,const std::string &s):lhs(left),rhs(right),opSym(s) {}
+		virtual std::string rep() const {return "("+lhs.rep()+" "+opSym+" "+rhs.rep()+")";}
+		Query lhs,rhs;
+		std::string opSym;
+};
+class AndQuery:public BinaryQuery
+{
+	friend Query operator&(const Query&,const Query&);
+	private:
+		AndQuery(const Query &left,const Query &right):BinaryQuery(left,right,"&") {}
+		virtual QueryResult eval(const TextQuery &) const;
+};
+inline Query operator&(const Query &left,const Query &right) {return new AndQuery(left,right);}
+class OrQuery:public BinaryQuery
+{
+	friend Query operator|(const Query &,const Query &);
+	private:
+		OrQuery(const Query &left,const Query &right):BinaryQuery(left,right,"|") {}
+		virtual QueryResult eval(const TextQuery &) const;
+};
+inline Query operator|(const Query &left,const Query &right) {return new OrQuery(left,right);}
+inline std::ostream & operator<<(std::ostream &os,const Query &q) {return os<<q.rep();}
+#endif
+```
+==Query.cpp==
+```
+#include <sstream>
+#include <algorithm>
+#include <cctype>
+#include "Query.h"
+TextQuery::TextQuery(std::ifstream &infile):file(new std::vector<std::string>)
+{
+	std::string text;
+	while(getline(infile,text,'.'))
+	{
+		for(decltype(text.size()) index=0;index!=text.size();++index)
+		{
+			if(text[index]=='\n')
+				text[index]=' ';
+		}
+		file->push_back(text);
+		std::size_t line_number=file->size()-1;
+		std::istringstream line(text);
+		std::string word;
+		while(line>>word)
+		{
+			std::string key_word;
+			for(auto c:word)
+			{
+				if(!ispunct(c))
+					key_word+=c;
+			}
+			std::shared_ptr<std::set<line_no>> &lines=wm[key_word];
+			if(!lines)
+				lines.reset(new std::set<line_no>);
+			lines->insert(line_number);
+		}
+	}
+}
+QueryResult TextQuery::query(const std::string &sought) const
+{
+	static std::shared_ptr<std::set<line_no>> nodata(new std::set<line_no>);
+	std::map<std::string,std::shared_ptr<std::set<line_no>>>::const_iterator map_it=wm.find(sought);
+	if(map_it==wm.end())
+		return QueryResult(sought,nodata,file);
+	else
+		return QueryResult(sought,map_it->second,file);
+}
+
+std::ostream &print(std::ostream &os,const QueryResult &qr)
+{
+	os<<"Executing Query for: "<<qr.sought<<std::endl;
+	os<<qr.sought<<" occurs "<<qr.lines->size()<<" "<<make_plural(qr.lines->size(),"time","s")<<std::endl;
+	for(auto num:*(qr.lines))
+		os<<"\t(sentence "<<num+1<<") "<<*(qr.file->begin()+num)<<"."<<std::endl;
+	return os;
+}
+Query & Query::operator=(const Query &rhs)
+{
+	++*rhs.reference_count;
+	if(--*reference_count==0)
+	{
+		delete q;
+		delete reference_count;
+	}
+	q=rhs.q;
+	reference_count=rhs.reference_count;
+	return *this;
+}
+Query::~Query()
+{
+	if(--*reference_count==0)
+	{
+		delete q;
+		delete reference_count;
+	}
+}
+QueryResult NotQuery::eval(const TextQuery &text) const
+{
+	auto result=query.eval(text);
+	auto beg=result.begin(),end=result.end();
+	auto ret_lines=std::make_shared<std::set<line_no>>();
+	auto sz=result.get_file()->size();
+	for(std::size_t n=0;n!=sz;++n)
+	{
+		if(beg==end||*beg!=n)
+			ret_lines->insert(n);
+		else if(beg!=end)
+			++beg;
+	}
+	return QueryResult(rep(),ret_lines,result.get_file());
+}
+QueryResult OrQuery::eval(const TextQuery &text) const
+{
+	auto left=lhs.eval(text),right=rhs.eval(text);
+	auto ret_lines=std::make_shared<std::set<line_no>>(left.begin(),left.end());
+	ret_lines->insert(right.begin(),right.end());
+	return QueryResult(rep(),ret_lines,left.get_file());
+}
+QueryResult AndQuery::eval(const TextQuery &text) const
+{
+	auto left=lhs.eval(text),right=rhs.eval(text);
+	auto ret_lines=std::make_shared<std::set<line_no>>();
+	set_intersection(left.begin(),left.end(),right.begin(),right.end(),inserter(*ret_lines,ret_lines->begin()));
+	return QueryResult(rep(),ret_lines,left.get_file());
+}
+```
