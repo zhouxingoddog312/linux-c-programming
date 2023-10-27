@@ -98,3 +98,28 @@ int main(void)
 	return 0;
 }
 ```
+### 16.6
+```
+template <typename T,unsigned L> T* begin(const T (&arr)[L])
+{
+	return arr;
+}
+template <typename T,unsigned L> T* end(const T (&arr)[L])
+{
+	return arr+L;
+}
+#include <iostream>
+#include <string>
+using namespace std;
+int main(void)
+{
+	string arr[]={"hi","hello","hei"};
+	for(auto p=begin(arr);p!=end(arr);++p)
+		cout<<*p<<endl;
+	return 0;
+}
+```
+### 16.7
+`template <typename T,unsigned L> constexpr L length(const T (&arr)[L]){return L;}`
+### 16.8
+所有标准库容器都定义了==和!=运算符，但其中只有少数定义了<运算符。因此，尽量使用!=而不是<，可减少你的算法适用容器的限制。
