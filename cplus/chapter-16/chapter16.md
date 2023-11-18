@@ -1160,3 +1160,15 @@ int main()
 	return 0;
 }
 ```
+### 16.25
+`extern template class vector<string>`>>实例化声明，承诺在程序其他位置有该实例化的一个非extern声明(定义)。
+`template class vector<Sales_data>`实例化定义，编译器遇到实例化定义时，将为其生成代码。
+### 16.26
+不可以。显式实例化时会实例化一个模板的所有成员，这其中当然包含vector接受元素数量的构造函数。因为未提供初始值的vector将会对其包含的元素进行值初始化，该操作由NoDefault的默认构造函数完成，而NoDefault并未提供默认构造函数。
+### 16.27
+1. 未实例化，函数声明
+2. 未实例化，引用
+3. 实例化Stack<int>
+4. 未实例化，指针
+5. 实例化Stack<char>，函数调用
+6. 实例化Stack<string> 
