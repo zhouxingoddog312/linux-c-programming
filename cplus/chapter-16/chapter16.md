@@ -1172,3 +1172,208 @@ int main()
 4. 未实例化，指针
 5. 实例化Stack<char>，函数调用
 6. 实例化Stack<string> 
+### 16.28
+```
+#ifndef _POINTERS_H
+#define _POINTERS_H
+#include <functional>
+#include <stdexcept>
+#include <exception>
+template <typename T> class Shared_Ptr;
+class Delete
+{
+	public:
+		template <typename T> void operator()(T *p)
+		{
+			delete p;
+		}
+};
+template <typename T> bool operator==(const Shared_Ptr<T> &,const Shared_Ptr<T> &);
+template <typename T> bool operator!=(const Shared_Ptr<T> &,const Shared_Ptr<T> &);
+template <typename T> class Shared_Ptr
+{
+	friend bool operator==<T>(const Shared_Ptr<T> &,const Shared_Ptr<T> &);
+	friend bool operator!=<T>(const Shared_Ptr<T> &,const Shared_Ptr<T> &);
+	public:
+		Shared_Ptr():del(nullptr),ptr(nullptr),count(new std::size_t(0)) {}
+		Shared_Ptr(T *p,std::function<void(T *)> DEL=nullptr):del(DEL),ptr(p),count(new std::size_t(1)) {}
+		Shared_Ptr(const Shared_Ptr &lhs,std::function<void(T *)> DEL=nullptr):del(DEL),ptr(lhs.ptr),count(lhs.count) {++*count;}
+		Shared_Ptr & operator=(const Shared_Ptr &rhs)
+		{
+			++*rhs.count;
+			if(*count==0||--*count==0)
+			{
+				del?del(ptr):delete ptr;
+				delete count;
+			}
+			ptr=rhs.ptr;
+			count=rhs.count;
+			del=rhs.del;
+			return *this;
+		}
+		T & operator*() const
+		{
+			if(ptr)
+				return *ptr;
+			else
+				throw std::runtime_error("dereference nullptr");
+		}
+		T * operator->() const
+		{
+			return & this->operator*();
+		}
+		explicit operator bool() const
+		{
+			return ptr?true:false;
+		}
+		T * get() const {return ptr;}
+		void reset(T *p=nullptr,std::function<void(T *)> DEL=nullptr)
+		{
+			if(*count==0||--*count==0)
+			{
+				del?del(ptr):delete ptr;
+				delete count;
+			}
+			if(!p)
+			{
+				del=nullptr;
+				ptr=nullptr;
+				count=new std::size_t(0);
+			}
+			else
+			{
+				ptr=p;
+				count=new std::size_t(1);
+				if(DEL)
+					del=DEL;
+			}
+		}
+		~Shared_Ptr()
+		{
+			if(*count==0||--*count==0)
+			{
+				del?del(ptr):delete ptr;
+				delete count;
+			}
+		}
+	private:
+		std::function<void(T *)> del;
+		T *ptr;
+		std::size_t *count;
+};
+template <typename T,typename F=Delete> class Unique_Ptr
+{
+	public:
+		Unique_Ptr(T *p=nullptr,F DEL=Delete()):ptr(p),del(DEL) {}
+		Unique_Ptr(F DEL):ptr(nullptr),del(DEL) {}
+		Unique_Ptr(const Unique_Ptr &)=delete;
+		Unique_Ptr & operator=(const Unique_Ptr &)=delete;
+		T *release()
+		{
+			T *ret=ptr;
+			ptr=nullptr;
+			return ret;
+		}
+		void reset(T *p=nullptr)
+		{
+			del(ptr);
+			ptr=p;
+		}
+		~Unique_Ptr() {del(ptr);}
+	private:
+		T *ptr;
+		F del;
+};
+template <typename T> bool operator==(const Shared_Ptr<T> &lhs,const Shared_Ptr<T> &rhs)
+{
+	return lhs.ptr==rhs.ptr;
+}
+template <typename T> bool operator!=(const Shared_Ptr<T> &lhs,const Shared_Ptr<T> &rhs)
+{
+	return !(lhs==rhs);
+}
+#endif
+```
+### 16.29
+待完善
+### 16.30
+同上
+### 16.31
+unique_ptr有两个模版参数，一个是所管理的对象类型，另一个是删除器类型。因此，删除器类型是unique_ptr的一部分，在编译时就可知道，删除器可直接保存在unique_ptr 对象中。通过这种方式，unique_ptr避免了间接调用删除器的运行时开销，而编译时还可以将自定义的删除器，如DebugDelete编译为内联形式,可参考16.28的Delete。
+### 16.32
+用函数实参来确定模板实参的过程被称为模板实参推断，在模板实参推断的过程中，编译器使用函数调用中的实参类型来寻找模板实参，从而生成对应的模板实例。
+### 16.33
+在模板实参推断的过程中，编译器通常不是对实参进行类型转换，而是生成一个新的模板实例。并且只有很有限的几种类型转换会发生，其中有：
+- 顶层const无论是在形参还是在实参中都会被忽略。
+- 可以将一个非const对象的引用（或指针）传递给一个const的引用（或指针）形参。
+- 如果函数形参不是引用类型，则可以对数组或函数类型的实参应用正常的指针转换。一个数组实参可以转换为一个指向其首元素的指针。类似的，一个函数实参可以转换为一个该函数类型的指针。
+### 16.34
+1. 不合法，因为形参类型是引用，所以数组实参无法转换为指针，同时这两个数组大小不同，因此是不同类型。
+2. 合法，原因与上面相同，不同点在于，数组大小相同，因此是相同类型。
+### 16.35
+1. 合法，T的类型是char
+2. 合法，T的类型double
+3. 合法，T的类型是char
+4. 不合法，实参类型不同，模板实参推断失败。
+### 16.36
+1. T推断为int *
+2. T1和T2都推断为int *
+3. T推断为const int *
+4. T1和T2都推断为const int *
+5. 不合法，一个是int *，一个是const int *，T类型推断失败
+6. T1推断为int *，T2推断为const int *
+### 16.37
+可以，利用显式模板实参将max实例化为`int max<int>(int,int)`或者`double max<double(double,double)>`，这样之后就可以应用正常的类型转换了。
+### 16.38
+因为函数返回类型与参数列表中任何类型都不相同时，编译器无法推断出模板实参的类型，这时候就需要指定显式模板实参。这个显式模板实参用来控制函数的返回类型。
+### 16.39
+`int compare<const char *>(const char * const &v1,const char * const &v2)`这是实例化的示例
+### 16.40
+合法，实参的迭代器所指的元素需要支持加号操作，由于`decltype(*beg+0)`是右值，所以推断出的返回类型应该是所指元素的常量引用。
+### 16.41
+`template <typename T1,typename T2> sum(T1 a,T2 b)->decltype(a+b) {return a+b;}`尾置返回类型中，a+b会自动进行类型提升，向较大的类型转换，返回类型就是其中较大的类型。
+### 16.42
+1. T是int &,int &val
+2. T是const int &,const int &val
+3. T是int,int &&val
+### 16.43
+i=ci表达式会返回左值i,故T将是int &
+### 16.44
+如果g的函数参数声明为T
+1. T是int,int val
+2. T是int,int val
+3. T是int,int val
+如果g的函数参数声明为const T&
+1. T是int,const int &val
+2. T是int,const int &val
+3. T是int,const int &val
+### 16.45
+如果对字面常量调用g，那么T会推断为int，函数参数为int &&val，函数内定义vector<int> v。
+如果对int类型的变量调用g，那么T会推断为int &，函数参数为int &val，而因为引用不是对象，所以无法定义元素为引用的vector，所以函数调用会失败。
+### 16.46
+此循环依次将elem所指的对象，移动到dest所指的内存中。循环体中调用construct成员，该成员在第二个参数是左值的情况下执行拷贝，是右值的情况下执行移动操作。
+### 16.47
+```
+#include <utility>
+#include <iostream>
+template <typename F,typename T1,typename T2> void flip(F f,T1 &&t1,T2 &&t2)
+{
+	f(std::forward<T2>(t2),std::forward<T1>(t1));
+}
+void print(int &i,int &j)
+{
+	std::cout<<"接受左值引用"<<std::endl;
+}
+void print(int &&i,int &&j)
+{
+	std::cout<<"接受右值引用"<<std::endl;
+}
+int main()
+{
+	int j=42;
+	int &i=j;
+	print(i,i);
+	print(42,42);
+	return 0;
+}
+```
