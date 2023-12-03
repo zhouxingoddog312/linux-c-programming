@@ -1377,3 +1377,139 @@ int main()
 	return 0;
 }
 ```
+### 16.48
+```
+#include <string>
+#include <sstream>
+using std::string;
+using std::ostringstream;
+template <typename T> string debug_rep(const T &t)
+{
+	ostringstream ret;
+	ret<<t;
+	return ret.str();
+}
+template <typename T> string debug_rep(T *p)
+{
+	ostringstream ret;
+	ret<<"pointer: "<<p;
+	if(p)
+		ret<<" "<<debug.rep(*p);
+	else
+		ret<<" null pointer";
+	return ret.str();
+}
+string debug_rep(const string &s)
+{
+	return '"'+s+'"';
+}
+string debug_rep(char *p)
+{
+	return debug_rep(string(p));
+}
+string debug_rep(const char *)
+{
+	return debug_rep(string(p));
+}
+```
+### 16.49
+g(42)	g<int>(int)
+g(p)	g<int>(int *)
+g(ci)	g<int>(int)
+g(p2)	g<const int>(const int *)
+f(42)	f<int>(int)
+f(p)	f<int *>(int*)
+f(ci)	f<int>(int)
+f(p2)	f<int>(const int *)
+### 16.50
+```
+#include <iostream>
+#include <typeinfo>
+using namespace std;
+template <typename T> void f(T t)
+{
+	cout<<"f(T t)"<<endl;
+	cout<<"t: "<<typeid(t).name()<<endl;
+}
+template <typename T> void f(const T* p)
+{
+	cout<<"f(const T*)"<<endl;
+	cout<<"p: "<<typeid(p).name()<<endl;
+}
+template <typename T> void g(T t)
+{
+	cout<<"g(T t)"<<endl;
+	cout<<"t: "<<typeid(t).name()<<endl;
+}
+template <typename T> void g(T* p)
+{
+	cout<<"g(T*)"<<endl;
+	cout<<"p: "<<typeid(p).name()<<endl;
+}
+int main(void)
+{
+	int i=42,*p=&i;
+	const int ci=42,*p2=&ci;
+	g(42);
+	g(p);
+	g(ci);
+	g(p2);
+	f(42);
+	f(p);
+	f(ci);
+	f(p2);
+	return 0;
+}
+```
+### 16.51
+<a id="1">见此处</a>
+```
+#include <iostream>
+#include <string>
+using namespace std;
+template <typename T,typename... Args> void foo(const T &t,const Args &... rest)
+{
+	cout<<"Args: "<<sizeof...(Args)<<endl;
+	cout<<"rest: "<<sizeof...(rest)<<endl;
+}
+int main(void)
+{
+	int i=0;
+	double d=3.14;
+	string s="how now brown cow";
+	foo(i,s,42,d);
+	foo(s,42,"hi");
+	foo(d,s);
+	foo("hi");
+	foo(i,42,41,43);
+	return 0;
+}
+```
+### 16.52
+[见16.51](#1)
+### 16.53
+```
+#include <iostream>
+#include <string>
+using namespace std;
+template <typename T> ostream &print(ostream &os,const T &t)
+{
+	return os<<t<<endl;
+}
+template <typename T,typename... Args> ostream &print(ostream &os,const T &t,const Args &... res)
+{
+	os<<t<<",";
+	return print(os,res...);
+}
+int main(void)
+{
+	print(cout,1);
+	print(cout,1,"hi");
+	print(cout,1,3.14,"hi",string("hello"),7);
+	return 0;
+}
+```
+### 16.54
+会产生编译错误。
+### 16.55
+如此一来，非可变参数版本就不在可变参数版本的作用域中，那么递归调用的将永远是可变参数版本的实例，即使res是空包，调用将依然进行下去，无法结束递归。
