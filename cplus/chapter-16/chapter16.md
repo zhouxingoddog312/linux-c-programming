@@ -1513,3 +1513,428 @@ int main(void)
 会产生编译错误。
 ### 16.55
 如此一来，非可变参数版本就不在可变参数版本的作用域中，那么递归调用的将永远是可变参数版本的实例，即使res是空包，调用将依然进行下去，无法结束递归。
+### 16.56
+```
+#include <iostream>
+#include <string>
+#include <sstream>
+using namespace std;
+template <typename T> string debug_rep(const T &t)
+{
+	ostringstream ret;
+	ret<<t;
+	return ret.str();
+}
+template <typename T> string debug_rep(T *p)
+{
+	ostringstream ret;
+	ret<<"pointer: "<<p;
+	if(p)
+		ret<<" "<<debug_rep(*p);
+	else
+		ret<<" null pointer";
+	return ret.str();
+}
+string debug_rep(const string &s)
+{
+	return '"'+s+'"';
+}
+string debug_rep(char *p)
+{
+	return debug_rep(string(p));
+}
+string debug_rep(const char *p)
+{
+	return debug_rep(string(p));
+}
+template <typename T> ostream &print(ostream &os,const T &t)
+{
+	return os<<t<<endl;
+}
+template <typename T,typename... Args> ostream &print(ostream &os,const T &t,const Args &... res)
+{
+	os<<t<<",";
+	return print(os,res...);
+}
+template <typename... Args> ostream & errorMsg(ostream &os,const Args &... rest)
+{
+	return print(os,debug_rep(rest)...);
+}
+int main(void)
+{
+	errorMsg(cerr,42,'h',"hello",1.34,string("hehe"));
+	return 0;
+}
+```
+### 16.57
+上一题中的errorMsg版本不需要参数具有相同的数据类型，而6.2.6节中的error_Msg函数需要所有参数具有相同类型。
+### 16.58
+==StrVec.h==
+```
+#ifndef _STRVEC_H
+#define _STRVEC_H
+#include <string>
+#include <cstddef>
+#include <utility>
+#include <memory>
+#include <initializer_list>
+class StrVec
+{
+	public:
+		StrVec():elements(nullptr),first_free(nullptr),cap(nullptr) {}
+		StrVec(const StrVec &);
+		StrVec(StrVec &&s) noexcept :elements(s.elements),first_free(s.first_free),cap(s.cap) {s.elements=s.first_free=s.cap=nullptr;}
+		StrVec(std::initializer_list<std::string>);
+		StrVec & operator=(const StrVec &);
+		StrVec & operator=(StrVec &&) noexcept;
+		~StrVec() {free();}
+		void push_back(const std::string &);
+		void push_back(std::string &&);
+		template <typename... Args> void emplace_back(Args&&... rest);
+		size_t size() {return first_free-elements;}
+		size_t capacity() {return cap-elements;}
+		std::string *begin() const {return elements;}
+		std::string *end() const {return first_free;}
+
+		void resize(const size_t n,const std::string &orgv=std::string());
+		void reserve(const size_t n);
+	private:
+		std::string *elements;
+		std::string *first_free;
+		std::string *cap;
+		static std::allocator<std::string> alloc;
+		void chk_n_alloc() {if(size()==capacity()) reallocate();}
+		std::pair<std::string *,std::string *> alloc_n_copy(const std::string *,const std::string *);
+		void free();
+		void reallocate();
+};
+#endif
+```
+==StrVec.cpp==
+```
+#include "StrVec.h"
+std::allocator<std::string> StrVec::alloc;
+StrVec::StrVec(const StrVec &org)
+{
+	std::pair<std::string *,std::string *> data=alloc_n_copy(org.begin(),org.end());
+	elements=data.first;
+	first_free=cap=data.second;
+}
+StrVec::StrVec(std::initializer_list<std::string> ls)
+{
+	auto data=alloc_n_copy(ls.begin(),ls.end());
+	elements=data.first;
+	first_free=cap=data.second;
+}
+StrVec & StrVec::operator=(const StrVec &rhs)
+{
+	auto data=alloc_n_copy(rhs.begin(),rhs.end());
+	free();
+	elements=data.first;
+	first_free=cap=data.second;
+	return *this;
+}
+StrVec & StrVec::operator=(StrVec &&s) noexcept
+{
+	if(this!=&s)
+	{
+		free();
+		elements=s.elements;
+		first_free=s.first_free;
+		cap=s.cap;
+		s.elements=s.first_free=s.cap=nullptr;
+	}
+	return *this;
+}
+void StrVec::push_back(const std::string &s)
+{
+	chk_n_alloc();
+	alloc.construct(first_free++,s);
+}
+void StrVec::push_back(std::string &&s)
+{
+	chk_n_alloc();
+	alloc.construct(first_free++,std::move(s));
+}
+template <typename... Args> inline void StrVec::emplace_back(Args&&... rest)
+{
+	chk_n_alloc();
+	alloc.construct(first_free++,std::forward<Args>(rest)...);
+}
+std::pair<std::string *,std::string *> StrVec::alloc_n_copy(const std::string *b,const std::string *e)
+{
+	std::string *data=alloc.allocate(e-b);
+	return {data,uninitialized_copy(b,e,data)};
+}
+void StrVec::free()
+{
+	if(elements)
+	{
+		for(auto p=first_free;p!=elements;)
+			alloc.destroy(--p);
+		alloc.deallocate(elements,cap-elements);
+	}
+}
+void StrVec::reallocate()
+{
+	size_t newcapacity=size()?2*size():1;
+	std::string *newdata=alloc.allocate(newcapacity);
+	std::string *dest=newdata;
+	std::string *src=elements;
+	for(size_t i=0;i!=size();++i)
+		alloc.construct(dest++,std::move(*src++));
+	free();
+	elements=newdata;
+	first_free=dest;
+	cap=elements+newcapacity;
+}
+void StrVec::reserve(const size_t n)
+{
+	if(n>capacity())
+	{
+		std::string *newdata=alloc.allocate(n);
+		std::string *dest=newdata;
+		std::string *src=elements;
+		for(size_t i=0;i!=size();++i)
+			alloc.construct(dest++,std::move(*src++));
+		free();
+		elements=newdata;
+		first_free=dest;
+		cap=elements+n;
+	}
+}
+void StrVec::resize(const size_t n,const std::string &orgv)
+{
+	if(n<=size())
+	{
+		std::string *b=elements+n;
+		std::string *e=first_free;
+		while(b!=e)
+			alloc.destroy(b++);
+		first_free=elements+n;
+	}
+	else if(n<=capacity())
+	{
+		std::string *b=first_free;
+		std::string *e=elements+n;
+		while(b!=e)
+			alloc.construct(b++,orgv);
+		first_free=e;
+	}
+	else
+	{
+		reserve(n);
+		std::string *b=first_free;
+		std::string *e=elements+n;
+		while(b!=e)
+			alloc.construct(b++,orgv);
+		first_free=e;
+	}
+}
+```
+==Vec.h==
+```
+#ifndef _VEC_H
+#define _VEC_H
+#include <memory>
+#include <utility>
+#include <algorithm>
+template <typename> class Vec;
+template <typename T> bool operator==(const Vec<T> &lhs,const Vec<T> &rhs);
+template <typename T> bool operator!=(const Vec<T> &lhs,const Vec<T> &rhs);
+template <typename T> bool operator<(const Vec<T> &lhs,const Vec<T> &rhs);
+template <typename T> bool operator<=(const Vec<T> &lhs,const Vec<T> &rhs);
+template <typename T> bool operator>(const Vec<T> &lhs,const Vec<T> &rhs);
+template <typename T> bool operator>=(const Vec<T> &lhs,const Vec<T> &rhs);
+template <typename T> class Vec
+{
+	friend bool operator==<T>(const Vec &lhs,const Vec &rhs);
+	friend bool operator!=<T>(const Vec &lhs,const Vec &rhs);
+	friend bool operator< <T>(const Vec &lhs,const Vec &rhs);
+	friend bool operator<=<T>(const Vec &lhs,const Vec &rhs);
+	friend bool operator> <T>(const Vec &lhs,const Vec &rhs);
+	friend bool operator>=<T>(const Vec &lhs,const Vec &rhs);
+	public:
+		Vec():elements(nullptr),first_free(nullptr),cap(nullptr){}
+		Vec(const Vec &org)
+		{
+			std::pair<T *,T *> data=alloc_n_copy(org.begin(),org.end());
+			elements=data.first;
+			first_free=cap=data.second;
+		}
+		Vec & operator=(const Vec &org)
+		{
+			auto data=alloc_n_copy(org.begin(),org.end());
+			free();
+			elements=data.first;
+			first_free=cap=data.second;
+			return *this;
+		}
+		T & operator[](std::size_t i) {return elements[i];}
+		const T & operator[](std::size_t i) const {return elements[i];}
+		~Vec() {free();}
+		void push_back(const T &elem)
+		{
+			chk_n_alloc();
+			alloc.construct(first_free++,elem);
+		}
+		template <typename... Args> void emplace_back(Args&&... args);
+		std::size_t size() const {return first_free-elements;}
+		std::size_t capacity() {return cap-elements;}
+		T *begin() const {return elements;}
+		T *end() const {return first_free;}
+		void resize(const std::size_t n,const T &orgv);
+		void reserve(const std::size_t n);
+	private:
+		T *elements;
+		T *first_free;
+		T *cap;
+		static std::allocator<T> alloc;
+		void chk_n_alloc() {if(size()==capacity()) reallocate();}
+		std::pair<T *,T *> alloc_n_copy(const T *,const T *);
+		void free();
+		void reallocate();
+};
+//implementation
+template <typename T> std::allocator<T> Vec<T>::alloc;
+template <typename T> template <typename... Args> void Vec<T>::emplace_back(Args&&... args)
+{
+	chk_n_alloc();
+	alloc.construct(first_free++,std::forward<Args>(args)...);
+}
+template <typename T> std::pair<T *,T *> Vec<T>::alloc_n_copy(const T *b,const T *e)
+{
+	T *data=alloc.allocate(e-b);
+	return {data,uninitialized_copy(b,e,data)};
+}
+template <typename T> void Vec<T>::reallocate()
+{
+	std::size_t newcapacity=size()?size()*2:1;
+	T *newdata=alloc.allocate(newcapacity);
+	T *dest=newdata;
+	T *src=elements;
+	for(std::size_t i=0;i!=size();++i)
+		alloc.construct(dest++,std::move(*src++));
+	free();
+	elements=newdata;
+	first_free=dest;
+	cap=elements+newcapacity;
+}
+template <typename T> void Vec<T>::free()
+{
+	if(elements)
+	{
+		for(auto p=first_free;p!=elements;)
+			alloc.destroy(--p);
+		alloc.deallocate(elements,cap-elements);
+	}
+}
+template <typename T> void Vec<T>::reserve(const std::size_t n)
+{
+	if(n>capacity())
+	{
+		T *newdata=alloc.allocate(n);
+		T *dest=newdata;
+		T *src=elements;
+		for(std::size_t i=0;i!=size();++i)
+			alloc.construct(dest++,std::move(*src++));
+		free();
+		elements=newdata;
+		first_free=dest;
+		cap=elements+n;
+	}
+}
+template <typename T> void Vec<T>::resize(const std::size_t n,const T &orgv)
+{
+	if(n<=size())
+	{
+		T *b=elements+n;
+		T *e=first_free;
+		while(b!=e)
+			alloc.destroy(b++);
+		first_free=elements+n;
+	}
+	else if(n<=capacity())
+	{
+		T *b=first_free;
+		T *e=elements+n;
+		while(b!=e)
+			alloc.construct(b++,orgv);
+		first_free=e;
+	}
+	else
+	{
+		reserve(n);
+		T *b=first_free;
+		T *e=elements+n;
+		while(b!=e)
+			alloc.construct(b++,orgv);
+		first_free=e;
+	}
+}
+template <typename T> bool operator==(const Vec<T> &lhs,const Vec<T> &rhs)
+{
+	return (lhs.size()==rhs.size())&&std::equal(lhs.begin(),lhs.end(),rhs.begin());
+}
+template <typename T> bool operator!=(const Vec<T> &lhs,const Vec<T> &rhs)
+{
+	return !(lhs==rhs);
+}
+template <typename T> bool operator<(const Vec<T> &lhs,const Vec<T> &rhs)
+{
+	return lexicographical_compare(lhs.begin(),lhs.end(),rhs.begin(),rhs.end());
+}
+template <typename T> bool operator>=(const Vec<T> &lhs,const Vec<T> &rhs)
+{
+	return !(lhs<rhs);
+}
+template <typename T> bool operator>(const Vec<T> &lhs,const Vec<T> &rhs)
+{
+	return rhs<lhs;
+}
+template <typename T> bool operator<=(const Vec<T> &lhs,const Vec<T> &rhs)
+{
+	return !(lhs>rhs);
+}
+#endif
+```
+==test.cpp==
+```
+#include "Vec.h"
+#include <string>
+#include <iostream>
+using std::string;
+using std::cin; using std::cout; using std::endl;
+using std::istream;
+void print(const Vec<string> &svec)
+{
+    for (string *it = svec.begin(); it != svec.end(); ++it)
+        cout << *it << " ";
+    cout << endl;
+}
+Vec<string> getVec(istream &is)
+{
+    Vec<string> svec;
+    string s;
+    while (is >> s)
+        svec.push_back(s);
+    return svec;
+}
+int main()
+{
+    Vec<string> svec = getVec(cin);
+    print(svec);
+    cout << "copy " << svec.size() << endl;
+    Vec<string> svec2 = svec;
+    print(svec2);
+    cout << "assign" << endl;
+    Vec<string> svec3;
+    svec3 = svec2;
+	svec3.emplace_back(10,'c');
+    print(svec3);
+    cout << "----- end -----"<<endl;
+    return 0;
+}
+```
+### 16.59
+假定s是一个string，那么经过包括展它会以`std::forward<string>(s)`的形式被传递给construct，因为s是左值，那么construct会得到一个左值实参，进而调用string的拷贝构造函数。
