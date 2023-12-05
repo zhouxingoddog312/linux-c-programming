@@ -1938,3 +1938,14 @@ int main()
 ```
 ### 16.59
 假定s是一个string，那么经过包括展它会以`std::forward<string>(s)`的形式被传递给construct，因为s是左值，那么construct会得到一个左值实参，进而调用string的拷贝构造函数。
+### 16.60
+make_shared将传递给它的参数包转发给用来实例化make_shared的类型的对应的构造函数，然后返回该对象的shared_ptr。
+### 16.61
+```
+#include <memory>
+template <typename T,typename... Args> shared_ptr<T> Make_Shared(Args&&... rest)
+{
+	shared_ptr<T> res(new T(std::forward(rest)...));
+	return res;
+}
+```
