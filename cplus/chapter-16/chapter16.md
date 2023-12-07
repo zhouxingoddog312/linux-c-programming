@@ -1949,3 +1949,115 @@ template <typename T,typename... Args> shared_ptr<T> Make_Shared(Args&&... rest)
 	return res;
 }
 ```
+### 16.62
+==Sales_data.h==
+```
+#include <iostream>
+#include <string>
+#include <functional>
+class Sales_data
+{
+	friend class std::hash<Sales_data>;
+	friend std::istream & operator>>(std::istream &,Sales_data &);
+	friend std::ostream & operator<<(std::ostream &,const Sales_data &);
+	friend Sales_data operator+(const Sales_data &,const Sales_data &);
+	friend bool operator==(const Sales_data &,const Sales_data &);
+	friend bool operator!=(const Sales_data &,const Sales_data &);
+	public:
+		std::string isbn() const {return bookNo;}
+		Sales_data()=default;
+		Sales_data(const std::string &s):bookNo(s) {}
+		Sales_data(const std::string &s,unsigned n,double p):bookNo(s),units_sold(n),revenue(n*p) {}
+		Sales_data & operator+=(const Sales_data &);
+		operator std::string() const {return bookNo;}
+		operator double() const {return revenue;}
+	private:
+		std::string bookNo;
+		unsigned units_sold=0;
+		double revenue=0.0;
+		double avg_price() const;
+};
+std::istream & operator>>(std::istream &,Sales_data &);
+std::ostream & operator<<(std::ostream &,const Sales_data &);
+Sales_data operator+(const Sales_data &,const Sales_data &);
+bool operator==(const Sales_data &,const Sales_data &);
+bool operator!=(const Sales_data &,const Sales_data &);
+namespace std
+{
+	template <> class hash<Sales_data>
+	{
+		public:
+			typedef size_t result_type;
+			typedef Sales_data argument_type;
+			size_t operator()(const Sales_data &s) const;
+	};
+}
+```
+==Sales_data.cpp==
+```
+#include "Sales_data.h"
+inline double Sales_data::avg_price() const
+{
+	if(units_sold)
+		return revenue/units_sold;
+	else
+		return 0;
+}
+std::istream & operator>>(std::istream &is,Sales_data &src)
+{
+	double price=0.0;
+	is>>src.bookNo>>src.units_sold>>price;
+	if(is)
+		src.revenue=src.units_sold*price;
+	else
+		src=Sales_data();
+	return is;
+}
+std::ostream & operator<<(std::ostream &os,const Sales_data &src)
+{
+	os<<src.isbn()<<" "<<src.units_sold<<" "<<src.revenue<<" "<<src.avg_price();
+	return os;
+}
+Sales_data & Sales_data::operator+=(const Sales_data & rhs)
+{
+	*this=*(this)+rhs;
+	return *this;
+}
+Sales_data operator+(const Sales_data &lhs,const Sales_data &rhs)
+{
+	Sales_data tmp;
+	tmp.bookNo=lhs.bookNo;
+	tmp.units_sold=lhs.units_sold+rhs.units_sold;
+	tmp.revenue=lhs.revenue+rhs.revenue;
+	return tmp;
+}
+bool operator==(const Sales_data &lhs,const Sales_data &rhs)
+{
+	return lhs.bookNo==rhs.bookNo&&lhs.units_sold==rhs.units_sold&&lhs.revenue==rhs.revenue;
+}
+bool operator!=(const Sales_data &lhs,const Sales_data &rhs)
+{
+	return !(lhs==rhs);
+}
+size_t std::hash<Sales_data>::operator()(const Sales_data &s) const
+{
+	return std::hash<std::string>()(s.bookNo)^std::hash<unsigned>()(s.units_sold)^std::hash<double>()(s.revenue);
+}
+```
+==test.cpp==
+```
+#include <iostream>
+#include <unordered_set>
+#include "Sales_data.h"
+int main(void)
+{
+	std::unordered_multiset<Sales_data> SDset;
+	Sales_data a{"100",2,20},b{"101",3,25},c{"100",2,20};
+	SDset.insert(a);
+	SDset.insert(b);
+	SDset.insert(c);
+	for(const auto& setit:SDset)
+		std::cout<<setit<<std::endl;
+	return 0;
+}
+```
