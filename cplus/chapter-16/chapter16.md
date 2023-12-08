@@ -2061,3 +2061,102 @@ int main(void)
 	return 0;
 }
 ```
+### 16.63
+```
+#include <iostream>
+#include <vector>
+using std::vector;
+using std::string;
+using std::cout;
+using std::endl;
+template <typename T> size_t statistic(const std::vector<T> &vec,const T &target)
+{
+	size_t result=0;
+	for(auto member:vec)
+		if(target==member)
+			++result;
+	return result;
+}
+int main(void)
+{
+	vector<int> ivec={1,2,3,3,4,5,6};
+	cout<<"ivec里有"<<statistic(ivec,3)<<"个3."<<endl;
+	vector<double> dvec={1.0,1.1,1.1,1.1,1.3};
+	cout<<"dvec里有"<<statistic(dvec,1.1)<<"个1.1"<<endl;
+	vector<string> svec{"hi","hello","hi"};
+	cout<<"svec里有"<<statistic(svec,string("hi"))<<"个hi"<<endl;
+	return 0;
+}
+```
+### 16.64
+```
+#include <iostream>
+#include <vector>
+#include <cstring>
+using std::vector;
+using std::string;
+using std::cout;
+using std::endl;
+template <typename T> size_t statistic(const std::vector<T> &vec,const T &target)
+{
+	size_t result=0;
+	for(auto member:vec)
+		if(target==member)
+			++result;
+	return result;
+}
+template <> size_t statistic(const std::vector<const char *> &vec,const char * const &target)
+{
+	size_t result=0;
+	for(auto member:vec)
+		if(strcmp(member,target)==0)
+			++result;
+	return result;
+}
+int main(void)
+{
+	vector<const char *> svec{"ni","hi","hi","hello","hi"};
+	const char *s="hi";
+	cout<<"svec里有"<<statistic(svec,s)<<"个hi"<<endl;
+	return 0;
+}
+```
+### 16.65
+```
+#include <string>
+#include <sstream>
+using std::string;
+using std::ostringstream;
+template <typename T> string debug_rep(const T &t)
+{
+	ostringstream ret;
+	ret<<t;
+	return ret.str();
+}
+template <typename T> string debug_rep(T *p)
+{
+	ostringstream ret;
+	ret<<"pointer: "<<p;
+	if(p)
+		ret<<" "<<debug.rep(*p);
+	else
+		ret<<" null pointer";
+	return ret.str();
+}
+string debug_rep(const string &s)
+{
+	return '"'+s+'"';
+}
+template <> string debug_rep(char *p)
+{
+	return debug_rep(string(p));
+}
+template <> string debug_rep(const char *)
+{
+	return debug_rep(string(p));
+}
+```
+### 16.66
+它们最主要的区别在于重载会影响函数匹配，所以在设计重载函数时需要注意避免函数调用和我们设计不一致的情况。而模板特例化本质上是创建一个模板的特殊实例，并不影响函数匹配。
+### 16.67
+特例化不影响函数匹配，它并不是为编译器进行函数匹配提供一个新的选择，而是为模版的一个特殊实例提供不同于原模版的特殊定义，本质上是接管了编译器在完成函数匹配后的部分实例化工作。即，当某个模版是最佳匹配时，且需要实例为这个特殊实例时，不再从原模版进行实例化，而是直接使用这个特殊化版本。
