@@ -112,6 +112,7 @@ int main(int argc,char *argv[])
 #include <iostream>
 #include <fstream>
 #include <string>
+#include <vector>
 #include <tuple>
 #include <algorithm>
 #include <numeric>
@@ -165,3 +166,156 @@ int main(void)
 	return 0;
 }
 ```
+### 17.5
+```
+#include <iostream>
+#include <fstream>
+#include <string>
+#include <utility>
+#include <vector>
+#include <algorithm>
+#include <numeric>
+#include "Sales_data.h"
+using namespace std;
+typedef pair<vector<Sales_data>::size_type,pair<vector<Sales_data>::const_iterator,vector<Sales_data>::const_iterator>> matches;
+vector<matches> findBook(const vector<vector<Sales_data>> &files,const string &book)
+{
+	vector<matches> ret;
+	for(auto it=files.cbegin();it!=files.cend();++it)
+	{
+		auto found=equal_range(it->cbegin(),it->cend(),book,compareIsbn);
+		if(found.first!=found.second)
+			ret.push_back(make_pair(it-files.cbegin(),found));
+	}
+	return ret;
+}
+void reportResults(istream &in,ostream &os,vector<vector<Sales_data>> &files)
+{
+	string s;
+	while(in>>s)
+	{
+		auto trans=findBook(files,s);
+		if(trans.empty())
+		{
+			cout<<s<<" not found in any stores"<<endl;
+			continue;
+		}
+		for(auto const &store:trans)
+		{
+			os<<"store "<<store.first<<" sales: "<<accumulate(store.second.first,store.second.second,Sales_data(s))<<endl;
+		}
+	}
+}
+
+int main(void)
+{
+	vector<vector<Sales_data>> files;
+	Sales_data tmp;
+	ifstream in;
+	string basename="text",line;
+	for(size_t index=0;index!=3;++index)
+	{
+		in.open(basename+to_string(index));
+		vector<Sales_data> file;
+		while(in>>tmp)
+			file.push_back(tmp);
+		in.close();
+		files.push_back(file);
+	}
+	reportResults(cin,cout,files);
+	return 0;
+}
+```
+### 17.6
+```
+#include <iostream>
+#include <fstream>
+#include <string>
+#include <utility>
+#include <vector>
+#include <algorithm>
+#include <numeric>
+#include "Sales_data.h"
+using namespace std;
+struct matches
+{
+	vector<Sales_data>::size_type index;
+	vector<Sales_data>::const_iterator bg;
+	vector<Sales_data>::const_iterator ed;
+};
+vector<matches> findBook(const vector<vector<Sales_data>> &files,const string &book)
+{
+	vector<matches> ret;
+	matches tmp;
+	for(auto it=files.cbegin();it!=files.cend();++it)
+	{
+		auto found=equal_range(it->cbegin(),it->cend(),book,compareIsbn);
+		if(found.first!=found.second)
+		{
+			tmp={it-files.cbegin(),found.first,found.second};
+			ret.push_back(tmp);
+		}
+	}
+	return ret;
+}
+void reportResults(istream &in,ostream &os,vector<vector<Sales_data>> &files)
+{
+	string s;
+	while(in>>s)
+	{
+		auto trans=findBook(files,s);
+		if(trans.empty())
+		{
+			cout<<s<<" not found in any stores"<<endl;
+			continue;
+		}
+		for(auto const &store:trans)
+		{
+			os<<"store "<<store.index<<" sales: "<<accumulate(store.bg,store.ed,Sales_data(s))<<endl;
+		}
+	}
+}
+
+int main(void)
+{
+	vector<vector<Sales_data>> files;
+	Sales_data tmp;
+	ifstream in;
+	string basename="text",line;
+	for(size_t index=0;index!=3;++index)
+	{
+		in.open(basename+to_string(index));
+		vector<Sales_data> file;
+		while(in>>tmp)
+			file.push_back(tmp);
+		in.close();
+		files.push_back(file);
+	}
+	reportResults(cin,cout,files);
+	return 0;
+}
+```
+### 17.7
+使用tuple版本更便捷，使用pair版本稍微复杂一点，自己定义一个类的版本更自由。
+### 17.8
+主要看类的默认构造函数和operator+是如何定义的，在我这里会得到错误的isbn。
+### 17.9
+1. 64位的位集，低位为100000，其余高位为0.
+2. 32位的位集，低位为11110110100110110101，其余高位为0.
+3. 如果bstr包含0或1之外的其他字符，构造函数会抛出invalid_argument的异常。否则如果bstr长于8，位集将由bstr的前八位构成，如果bstr长度小于8，那么位集的低位将由bstr构成，而高位被置为0.
+### 17.10
+```
+#include <iostream>
+#include <bitset>
+int main(void)
+{
+	std::bitset<22> a("1000000010000100101110");
+	std::cout<<a<<std::endl;
+	std::bitset<22> b;
+	b^=~a;
+	std::cout<<b<<std::endl;
+	return 0;
+}
+```
+### 17.11
+如果只记录真假的话，使用一个位即可记录一对真假，10个问题的真假测验的解答用`unsigned char`或者位字段或者bitset都可以。但是如果包含100道题的话，那么`unsigned long long`只保证至少64位，所以最好还是使用bitset或者位字段。

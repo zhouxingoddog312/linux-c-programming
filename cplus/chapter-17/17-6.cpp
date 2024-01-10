@@ -1,21 +1,30 @@
 #include <iostream>
-#include <vector>
 #include <fstream>
 #include <string>
-#include <tuple>
+#include <utility>
+#include <vector>
 #include <algorithm>
 #include <numeric>
 #include "Sales_data.h"
 using namespace std;
-typedef tuple<vector<Sales_data>::size_type,vector<Sales_data>::const_iterator,vector<Sales_data>::const_iterator> matches;
+struct matches
+{
+	vector<Sales_data>::size_type index;
+	vector<Sales_data>::const_iterator bg;
+	vector<Sales_data>::const_iterator ed;
+};
 vector<matches> findBook(const vector<vector<Sales_data>> &files,const string &book)
 {
 	vector<matches> ret;
+	matches tmp;
 	for(auto it=files.cbegin();it!=files.cend();++it)
 	{
 		auto found=equal_range(it->cbegin(),it->cend(),book,compareIsbn);
 		if(found.first!=found.second)
-			ret.push_back(make_tuple(it-files.cbegin(),found.first,found.second));
+		{
+			tmp={it-files.cbegin(),found.first,found.second};
+			ret.push_back(tmp);
+		}
 	}
 	return ret;
 }
@@ -32,12 +41,10 @@ void reportResults(istream &in,ostream &os,vector<vector<Sales_data>> &files)
 		}
 		for(auto const &store:trans)
 		{
-			os<<"store "<<get<0>(store)<<" sales: "<<accumulate(get<1>(store),get<2>(store),Sales_data(s))<<endl;
+			os<<"store "<<store.index<<" sales: "<<accumulate(store.bg,store.ed,Sales_data(s))<<endl;
 		}
 	}
 }
-
-
 
 int main(void)
 {
