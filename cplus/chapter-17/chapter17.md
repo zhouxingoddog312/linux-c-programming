@@ -319,3 +319,37 @@ int main(void)
 ```
 ### 17.11
 如果只记录真假的话，使用一个位即可记录一对真假，10个问题的真假测验的解答用`unsigned char`或者位字段或者bitset都可以。但是如果包含100道题的话，那么`unsigned long long`只保证至少64位，所以最好还是使用bitset或者位字段。
+### 17.12
+<a id="1">见此处</a>
+```
+#include <iostream>
+#include <bitset>
+using namespace std;
+void check(bitset<10> &question,size_t index,bool answ)
+{
+	question.set(index,answ);
+}
+int main(void)
+{
+	char ch;
+	bool answ;
+	bitset<10> question,grade,answer("1000100101");
+	for(size_t i=0;i!=question.size();++i)
+	{
+		cout<<"Enter the answer of question "<<i<<": ";
+		cin.get(ch);
+		if(ch=='1'||ch=='y'||ch=='Y')
+			answ=1;
+		else
+			answ=0;
+		check(question,i,answ);
+	}
+	cout<<"question is:"<<question<<endl;
+	grade=~(question^answer);
+	cout<<"grade is:"<<grade<<endl;
+	cout<<"一共得了（分）："<<grade.count()<<endl;
+	return 0;
+}
+```
+### 17.13
+[见17.12](#1)
