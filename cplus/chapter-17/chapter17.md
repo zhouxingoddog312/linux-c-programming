@@ -353,3 +353,112 @@ int main(void)
 ```
 ### 17.13
 [见17.12](#1)
+### 17.14
+```
+#include <iostream>
+#include <regex>
+int main(void)
+{
+	try
+	{
+		std::regex r("[[:alnums:]].",std::regex::icase);
+	}catch(std::regex_error e)
+	{
+		std::cout<<e.what()<<"\nerror code: "<<e.code()<<std::endl;
+	}
+	try
+	{
+		std::regex r("[[:alnum:]].\\",std::regex::icase);
+	}catch(std::regex_error e)
+	{
+		std::cout<<e.what()<<"\nerror code: "<<e.code()<<std::endl;
+	}
+	try
+	{
+		std::regex r("[[:alnum:].",std::regex::icase);
+	}catch(std::regex_error e)
+	{
+		std::cout<<e.what()<<"\nerror code: "<<e.code()<<std::endl;
+	}
+	try
+	{
+		std::regex r("[[:alnum:]]\\.(aa|aA$",std::regex::icase);
+	}catch(std::regex_error e)
+	{
+		std::cout<<e.what()<<"\nerror code: "<<e.code()<<std::endl;
+	}
+	return 0;
+}
+```
+### 17.15
+```
+#include <iostream>
+#include <string>
+#include <regex>
+int main(void)
+{
+	std::regex r("[[:alpha:]]*[^c]ei[[:alpha:]]*");
+	std::smatch result;
+	std::string tmp;
+	std::cout<<"Enter a word: ";
+	while(std::cin>>tmp)
+	{
+		if(regex_match(tmp,result,r))
+			std::cout<<"error word: "<<result.str()<<std::endl;
+		else
+			std::cout<<"right word: "<<tmp<<std::endl;
+		std::cout<<"Enter a word: ";
+	}
+	return 0;
+}
+```
+### 17.16
+如果使用[^c]ei进行初始化，那么此模式只能匹配首字母不是c的三个字母组成的单词，其余单词都不能匹配。
+```
+#include <iostream>
+#include <string>
+#include <regex>
+int main(void)
+{
+	std::regex r("[^c]ei");
+	std::smatch result;
+	std::string tmp;
+	std::cout<<"Enter a word: ";
+	while(std::cin>>tmp)
+	{
+		if(regex_match(tmp,result,r))
+			std::cout<<"error word: "<<result.str()<<std::endl;
+		else
+			std::cout<<"right word: "<<tmp<<std::endl;
+		std::cout<<"Enter a word: ";
+	}
+	return 0;
+}
+```
+### 17.17
+```
+#include <iostream>
+#include <string>
+#include <regex>
+int main(void)
+{
+	std::regex r("[[:alpha:]]*[^c]ei[[:alpha:]]*",std::regex::icase);
+	std::smatch result;
+	std::string tmp,str;
+	std::cout<<"Enter some word(ctrl+D to quit): ";
+	while(std::cin>>tmp)
+	{
+		tmp+=" ";
+		str+=tmp;
+	}
+	std::cout<<"all the words wrong: ";
+	for(std::sregex_iterator it(str.begin(),str.end(),r),end_it;it!=end_it;++it)
+	{
+		std::cout<<it->str()<<" ";
+	}
+	std::cout<<std::endl;
+	return 0;
+}
+```
+### 17.18
+没看懂意思，如果只是单纯要排除某些指定的单词的话，在匹配之后输出之前判断一下这个单词是否是要排除的那些单词之一即可，但这并不是一个好办法。
