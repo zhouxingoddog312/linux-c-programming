@@ -462,3 +462,177 @@ int main(void)
 ```
 ### 17.18
 没看懂意思，如果只是单纯要排除某些指定的单词的话，在匹配之后输出之前判断一下这个单词是否是要排除的那些单词之一即可，但这并不是一个好办法。
+### 17.19
+首先调用`m[4].str()`如果m[4]匹配了会返回一个包含输入中匹配部分的string，如果没有匹配就会返回空string。其次,由于`||`的短路求值属性，会先行判断`m[4].matched==0`，当它为false时表示m[4]已经匹配了。
+### 17.20
+```
+#include <iostream>
+#include <regex>
+bool valid(const std::smatch &m)
+{
+	if(m[1].matched)
+		return m[3].matched&&(m[4].matched==false ||m[4].str()==" ");
+	else
+		return !m[3].matched && m[4].str()==m[6].str();
+}
+int main(void)
+{
+	std::string line;
+	std::smatch m;
+	std::regex r("(\\()?(\\d{3})(\\))?([-. ])?(\\d{3})([-. ])?(\\d{4})");
+	while(getline(std::cin,line))
+	{
+		for(std::sregex_iterator it(line.begin(),line.end(),r),end_it;it!=end_it;++it)
+		{
+			if(valid(*it))
+				std::cout<<"valid: "<<it->str()<<std::endl;
+			else
+				std::cout<<"not valid: "<<it->str()<<std::endl;
+		}
+	}
+	return 0;
+}
+```
+### 17.21
+```
+#include <iostream>
+#include <fstream>
+#include <sstream>
+#include <string>
+#include <vector>
+#include <regex>
+using namespace std;
+bool valid(const string &str);
+string format(const string &str);
+struct PersonInfo
+{
+	string name;
+	vector<string> phones;
+};
+int main(int argc,char *argv[])
+{
+	string line,word;
+	vector<PersonInfo> people;
+	istringstream record;
+	ifstream ifst(argv[1]);
+	ofstream ofst(argv[2]);
+	while(getline(ifst,line))
+	{
+		PersonInfo info;
+		record.clear(record.rdstate()&~record.failbit&~record.eofbit);
+		record.str(line);
+		record>>info.name;
+		while(record>>word)
+			info.phones.push_back(word);
+		people.push_back(info);
+	}
+	for(const auto &pi:people)
+	{
+		ostringstream formatted,badnums;
+		for(const auto &ph:pi.phones)
+		{
+			if(!valid(ph))
+				badnums<<" "<<ph;
+			else
+				formatted<<" "<<format(ph);
+		}
+		if(badnums.str().empty())
+			ofst<<pi.name<<" "<<formatted.str()<<endl;
+		else
+			cerr<<"input error: "<<pi.name<<" invalid numbers "<<badnums.str()<<endl;
+	}
+	return 0;
+}
+//假设电话号码的格式11111111111或者111-1111-1111
+bool valid(const string &str)
+{
+	regex r("^(\\d{3})(-)?(\\d{4})(-)?(\\d{4})$");
+	smatch m;
+	if(regex_match(str,m,r))
+	{
+		return m[2].matched==m[4].matched;
+	}
+	return false;
+}
+string format(const string &str)
+{
+	return str;
+}
+```
+### 17.22
+```
+#include <iostream>
+#include <fstream>
+#include <sstream>
+#include <string>
+#include <vector>
+#include <regex>
+using namespace std;
+bool valid(const smatch &);
+string format(const string &str);
+struct PersonInfo
+{
+	string name;
+	vector<string> phones;
+};
+int main(int argc,char *argv[])
+{
+	regex r("(\\d{3})([[:space:]]*)(\\d{4})([[:space:]]*)(\\d{4})");
+	string line,word;
+	vector<PersonInfo> people;
+	istringstream record;
+	ifstream ifst(argv[1]);
+	ofstream ofst(argv[2]);
+	while(getline(ifst,line))
+	{
+		PersonInfo info;
+		record.clear(record.rdstate()&~record.failbit&~record.eofbit);
+		record.str(line);
+		record>>info.name;
+		getline(record,word);
+		for(sregex_iterator it(word.begin(),word.end(),r),end_it;it!=end_it;++it)
+			info.phones.push_back(it->str());
+		people.push_back(info);
+	}
+	for(const auto &pi:people)
+	{
+		ostringstream formatted,badnums;
+		for(const auto &ph:pi.phones)
+		{
+				formatted<<" "<<format(ph);
+		}
+		if(badnums.str().empty())
+			ofst<<pi.name<<" "<<formatted.str()<<endl;
+		else
+			cerr<<"input error: "<<pi.name<<" invalid numbers "<<badnums.str()<<endl;
+	}
+	return 0;
+}
+//假设电话号码的格式11111111111或者111 1111 1111或者111-1111-1111
+string format(const string &str)
+{
+	return str;
+}
+```
+### 17.23
+```
+#include <iostream>
+#include <regex>
+//格式为11111或者11111-1111或者111111111
+int main(void)
+{
+	std::regex r("(\\d{5})([-])?(\\d{4})?");
+	std::string line;
+	while(getline(std::cin,line))
+	{
+		for(std::sregex_iterator it(line.begin(),line.end(),r),end_it;it!=end_it;++it)
+		{
+			if((*it)[3].matched)
+				std::cout<<it->str(1)<<"-"<<it->str(3)<<std::endl;
+			else
+				std::cout<<it->str()<<std::endl;
+		}
+	}
+	return 0;
+}
+```
