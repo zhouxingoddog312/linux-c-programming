@@ -636,3 +636,149 @@ int main(void)
 	return 0;
 }
 ```
+### 17.24
+```
+#include <iostream>
+#include <regex>
+#include <string>
+int main(void)
+{
+	std::regex r("(\\()?(\\d{3})(\\))?([-. ])?(\\d{3})([-. ])?(\\d{4})");
+	std::string line;
+	std::string fmt="$2.$5.$7 ";
+	while(getline(std::cin,line))
+	{
+		std::cout<<regex_replace(line,r,fmt,std::regex_constants::format_no_copy)<<std::endl;
+	}
+	return 0;
+}
+```
+### 17.25
+```
+#include <iostream>
+#include <regex>
+#include <string>
+int main(void)
+{
+	std::regex r("(\\()?(\\d{3})(\\))?([-. ])?(\\d{3})([-. ])?(\\d{4})");
+	std::string line;
+	std::string fmt="$2.$5.$7";
+	while(getline(std::cin,line))
+	{
+		std::cout<<regex_replace(line,r,fmt,std::regex_constants::format_no_copy|std::regex_constants::format_first_only)<<std::endl;
+	}
+	return 0;
+}
+```
+### 17.26
+```
+#include <iostream>
+#include <string>
+#include <vector>
+#include <regex>
+int main(void)
+{
+	std::vector<std::vector<std::string>> result;
+	std::regex r("(\\()?(\\d{3})(\\))?([-. ])?(\\d{3})([-. ])?(\\d{4})");
+	std::string fmt="$2.$5.$7";
+	std::string line;
+	while(getline(std::cin,line))
+	{
+		std::vector<std::string> tmp;
+		for(std::sregex_iterator it(line.begin(),line.end(),r),end_it;it!=end_it;++it)
+		{
+			tmp.push_back(it->format(fmt));
+		}
+		if(!tmp.empty())
+			result.push_back(tmp);
+	}
+	for(const auto &sv:result)
+	{
+		if(sv.size()==1)
+			std::cout<<sv[0];
+		else
+		{
+			for(size_t index=1;index!=sv.size();++index)
+				std::cout<<sv[index]<<" ";
+		}
+		std::cout<<std::endl;
+	}
+	return 0;
+}
+```
+###  17.27
+```
+#include <iostream>
+#include <regex>
+#include <string>
+//我也不知道邮编可能有哪些形式
+//假设有111111111和1111-11111和1111 11111和1111.11111这些形式
+int main(void)
+{
+	std::string line,fmt="$1-$3 ";
+	std::regex r("(\\d{4})([-. ])?(\\d{5})");
+	while(getline(std::cin,line))
+	{
+		line=std::regex_replace(line,r,fmt,std::regex_constants::format_no_copy);
+		if(!line.empty())
+			std::cout<<line<<std::endl;
+	}
+	return 0;
+}
+```
+### 17.28
+```
+#include <iostream>
+#include <random>
+unsigned rad()
+{
+	static std::default_random_engine e;
+	static std::uniform_int_distribution<unsigned> u;
+	return u(e);
+}
+int main(void)
+{
+	for(size_t i=0;i<100;++i)
+		std::cout<<rad()<<" ";
+	std::cout<<std::endl;
+	return 0;
+}
+```
+### 17.29
+```
+#include <iostream>
+#include <random>
+#include <ctime>
+unsigned rad(int sd=time(0))
+{
+	static std::default_random_engine e(sd);
+	static std::uniform_int_distribution<unsigned> u;
+	return u(e);
+}
+int main(void)
+{
+	for(size_t i=0;i<100;++i)
+		std::cout<<rad()<<" ";
+	std::cout<<std::endl;
+	return 0;
+}
+```
+### 17.30
+```
+#include <iostream>
+#include <random>
+#include <ctime>
+unsigned rad(unsigned sd=time(0),unsigned min=0,unsigned max=9)
+{
+	static std::default_random_engine e(sd);
+	static std::uniform_int_distribution<unsigned> u(min,max);
+	return u(e);
+}
+int main(void)
+{
+	for(size_t i=0;i<100;++i)
+		std::cout<<rad(1,1,10)<<" ";
+	std::cout<<std::endl;
+	return 0;
+}
+```
