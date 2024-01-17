@@ -782,3 +782,136 @@ int main(void)
 	return 0;
 }
 ```
+### 17.31
+如果循环内定义b、e，那么每步循环都会创建一个新引擎及分布对象，从而每步循环都会生成相同的值。
+### 17.32
+如果在循环内定义resp，那么在while条件判断时resp已经不在其作用域。
+### 17.33
+```
+#include <iostream>
+#include <fstream>
+#include <sstream>
+#include <string>
+#include <map>
+#include <stdexcept>
+#include <random>
+#include <vector>
+#include <ctime>
+using namespace std;
+std::default_random_engine e(time(0));
+std::uniform_int_distribution<unsigned> d;
+map<string,vector<string>> buildMap(ifstream &map_file)
+{
+	map<string,vector<string>> trans_map;
+	string key,value;
+	while(map_file>>key&&getline(map_file,value))
+	{
+		if(value.size()>1)
+			trans_map[key].push_back(value.substr(1));
+		else
+			throw runtime_error("no rule for "+key);
+	}
+	return trans_map;
+}
+const string & transform(const string &str,map<string,vector<string>> &m)
+{
+	auto map_it=m.find(str);
+	if(map_it==m.end())
+		return str;
+	else
+	{
+		return map_it->second[d(e)%(map_it->second.size())];
+	}
+}
+void word_transform(ifstream &map_file,ifstream &input)
+{
+	auto trans_map=buildMap(map_file);
+	string text;
+	while(getline(input,text))
+	{
+		istringstream stream(text);
+		string word;
+		bool firstword=true;
+		while(stream>>word)
+		{
+			if(firstword)
+				firstword=false;
+			else
+				cout<<" ";
+			cout<<transform(word,trans_map);
+		}
+		cout<<endl;
+	}
+}
+int main(int argc,char *argv[])//第一个参数是map文件，第二个参数是源文本文件
+{
+	ifstream map_file(argv[1]);
+	ifstream input(argv[2]);
+	word_transform(map_file,input);
+	return 0;
+}
+```
+### 17.34
+```
+#include <iostream>
+#include <iomanip>
+#include <cmath>
+int main(void)
+{
+	int i=19;
+	int a=-19;
+	double b=sqrt(2);
+	bool c=true;
+	std::cout<<std::boolalpha<<c<<std::noboolalpha<<std::endl;
+	std::cout<<std::showbase<<std::hex<<i<<std::noshowbase<<std::dec<<std::endl;
+	std::cout<<std::setprecision(12)<<std::scientific<<std::uppercase<<b<<std::endl;
+	std::cout<<std::setw(15)<<std::internal<<a<<std::ends<<'\n';
+	return 0;
+}
+```
+### 17.35
+```
+#include <iostream>
+#include <iomanip>
+#include <cmath>
+int main(void)
+{
+	std::cout<<std::hexfloat<<std::uppercase<<sqrt(2)<<std::ends<<'\n';
+	return 0;
+}
+```
+### 17.36
+```
+#include <iostream>
+#include <iomanip>
+#include <cmath>
+int main(void)
+{
+	std::cout<<std::setw(16)<<sqrt(2)<<std::endl;
+	std::cout<<std::setw(16)<<sqrt(3)<<std::endl;
+	std::cout<<std::setw(16)<<sqrt(5)<<std::endl;
+	std::cout<<std::setw(16)<<sqrt(7)<<std::endl;
+	std::cout<<std::setw(16)<<sqrt(113)<<std::endl;
+	return 0;
+}
+```
+### 17.37
+一行的长度超过传递给getline的字符数组的大小时，会导致输入流的条件状态被置为错误，导致后续读入失败。
+<a id="2">见此处</a>
+```
+#include <iostream>
+#include <fstream>
+int main(int argc,char *argv[])
+{
+	std::ifstream in(argv[1]);
+	char *str=new char[100];
+	while(in.getline(str,100,'\n'))
+	{
+		std::cout.write(str,in.gcount());
+		std::cout<<'\n';
+	}
+	delete [] str;
+}
+```
+### 17.38
+[见17.37](#2)
