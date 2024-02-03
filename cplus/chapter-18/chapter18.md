@@ -1170,3 +1170,16 @@ int main(void)
 当mem1是一个string时程序因为更特例化的原因，会调用string中定义的swap版本，而int是内置类型，内置类型没有特定版本的swap，所以会调用std::swap。
 ### 18.19
 如果使用std::swap的形式，则是直接指明调用std命名空间中的swap版本。
+### 18.20
+- 命名空间primerLib中声明的compte将被加入候选函数集
+候选函数`void compute()` `void compute(const void *)` `void compute(int)` `void compute(double,double=3.4)` `void compute(char*,char*=0)`
+可行函数
+`void compute(const void *)`0能转换成任意指针类型
+`void compute(int)`精确匹配
+`void compute(double,double=3.4)`int向double的算术类型转换
+`void compute(char*,char*=0)`0能转换成任意指针类型
+- 如果将using声明置于f函数中compute的调用点之前,将隐藏全局作用域中声明的compute.
+候选函数`void compute()` `void compute(const void *)`
+可行函数
+`void compute(const void *)`0能转换成任意指针类型
+### 18.21
