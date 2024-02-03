@@ -190,3 +190,93 @@ void operator delete(void *mem) noexcept
 	free(mem);
 }
 ```
+### 19.3
+1 成功，因为pa的类型是目标类型的公有基类。
+2 失败，因为pb实际指向B类型而非目标C类型。
+3 失败，因为A是D的一个二义基类。
+```
+#include <iostream>
+#include <memory>
+class A
+{
+	public:
+		A()=default;
+		virtual ~A()=default;
+};
+class B:public A
+{
+	public:
+		B()=default;
+		virtual ~B()=default;
+};
+class C:public B
+{
+	public:
+		C()=default;
+		virtual ~C()=default;
+};
+class D:public B,public A
+{
+	public:
+		D()=default;
+		virtual  ~D()=default;
+};
+int main(void)
+{
+//	A *pa=new C;
+//	B *pb=dynamic_cast<B *>(pa);
+	B *pb=new B;
+	if(C *pc=dynamic_cast<C *>(pb))
+		std::cout<<"yes"<<std::endl;
+	else
+		std::cout<<"no"<<std::endl;
+//	A *pa=new D;
+//	B *pb=dynamic_cast<B *>(pa);
+	return 0;
+}
+```
+### 19.4
+```
+#include <iostream>
+#include <memory>
+class A
+{
+	public:
+		A()=default;
+		virtual ~A()=default;
+};
+class B:public A
+{
+	public:
+		B()=default;
+		virtual ~B()=default;
+};
+class C:public B
+{
+	public:
+		C()=default;
+		virtual ~C()=default;
+};
+class D:public B,public A
+{
+	public:
+		D()=default;
+		virtual  ~D()=default;
+};
+int main(void)
+{
+//运行时会抛出错误
+	A *pa=new A;
+	try
+	{
+		C &rc=dynamic_cast<C &>(*pa);
+	}
+	catch(std::bad_cast err)
+	{
+		std::cerr<<err.what()<<std::endl;
+	}
+	return 0;
+}
+```
+### 19.5
+想要使用基类的引用或指针使用派生类的非虚函数操作的时候。
