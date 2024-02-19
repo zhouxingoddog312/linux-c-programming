@@ -459,3 +459,27 @@ int main(int argc,char *argv[])
 	return 0;
 }
 ```
+### 19.9
+```
+#include <iostream>
+#include <typeinfo>
+#include <string>
+#include "19-6/Query.h"
+using std::cout;
+using std::endl;
+using std::string;
+int main(void)
+{
+	int i;
+	double d;
+	char c;
+	string str;
+	Query q("hi");
+	cout<<typeid(i).name()<<","<<typeid(d).name()<<","<<typeid(c).name()<<","<<typeid(str).name()<<","<<typeid(q).name()<<endl;
+	return 0;
+}
+```
+### 19.10
+1 A *
+2 A *
+3 B
