@@ -21,11 +21,11 @@ class Sales_data
 		Sales_data & operator+=(const Sales_data &);
 		operator std::string() const {return bookNo;}
 		operator double() const {return revenue;}
+		double avg_price() const;
 	private:
 		std::string bookNo;
 		unsigned units_sold=0;
 		double revenue=0.0;
-		double avg_price() const;
 };
 std::istream & operator>>(std::istream &,Sales_data &);
 std::ostream & operator<<(std::ostream &,const Sales_data &);
