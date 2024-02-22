@@ -549,3 +549,87 @@ int main(void)
 ```
 ### 19.13
 `static const std::string Sales_data::* data(){return &Sales_data::bookNo;}`
+### 19.14
+`auto pmf=&Screen::get_cursor;`合法，pmf是一个成员函数指针，它指向Screen类的常量成员函数，该函数不接受参数，返回一个char类型数据.
+`pmf=&Screen::get`合法，pmf被赋值为Screen类内不接受参数并返回char类型值的那个get成员函数。
+### 19.15
+指向成员函数的指针的类型包含所指向的类的类型，并且在调用时需要提供类的对象，同时指向成员函数的指针和成员函数名之间不存在自动转换规则。
+### 19.16
+`using avp=double (Sales_data::*) () const`
+### 19.17
+```
+#include <string>
+class Screen
+{
+	public:
+		using pos=std::string::size_type;
+		Screen()=default;
+		Screen(pos ht,pos wd):height{ht},width{wd},contents(ht*wd,' '){}
+		Screen(pos ht,pos wd,char c):height{ht},width{wd},contents(ht*wd,c){}
+		char get() const {return contents[cursor];}
+		char get(pos r,pos c) const;
+		Screen &move(pos r,pos c);
+		Screen &set(char);
+		Screen &set(pos,pos,char);
+		Screen &display(std::ostream &os){do_display(os);return *this;}
+		const Screen &display(std::ostream &os) const {do_display(os);return *this;}
+		static pos Screen::* data()
+		{
+			return &Screen::cursor;
+		}
+	private:
+		pos cursor=0,height=0,width=0;
+		std::string contents;
+		void  do_display(std::ostream &os) const {os<<contents;}
+};
+/*在这里*/
+using p1=char (Sales_data::*) () const;
+using p2=char (Sales_data::*) (Screen::pos,Screen::pos) const;
+using p3=Screen & (Sales_data::*) (Screen::pos,Screen::pos);
+using p4=Screen & (Sales_data::*) (char);
+using p5=Screen & (Sales_data::*) (Screen::pos,Screen::pos,char);
+using p6=Screen & (Sales_data::*) (std::ostream &);
+using p7=const Screen & (Sales_data::*) (std::ostream &) const;
+using p8=void (Sales_data::*) (std::ostream &) const;
+/********/
+inline char Screen::get(pos r,pos c) const
+{
+	pos row=r*width;
+	return contents[row+c];
+}
+inline Screen &Screen::move(pos r,pos c)
+{
+	pos row=r*width;
+	cursor=row+c;
+	return *this;
+}
+inline Screen &Screen::set(char ch)
+{
+	contents[cursor]=ch;
+	return *this;
+}
+inline Screen &Screen::set(pos r,pos c,char ch)
+{
+	contents[r*width+c]=ch;
+	return *this;
+}
+```
+### 19.18
+```
+#include <iostream>
+#include <string>
+#include <vector>
+#include <algorithm>
+#include <functional>
+using std::vector;
+using std::string;
+using std::cout;
+using std::endl;
+using std::placeholders::_1;
+int main(void)
+{
+	vector<string> svec={"hi","","","hello",""};
+	cout<<count_if(svec.begin(),svec.end(),bind(&string::empty,_1))<<endl;
+	return 0;
+}
+```
