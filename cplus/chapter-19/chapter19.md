@@ -633,3 +633,119 @@ int main(void)
 	return 0;
 }
 ```
+
+
+
+### 19.20
+==19-20.cpp==
+```
+#include <iostream>
+#include <fstream>
+#include "TextQuery.h"
+using namespace std;
+void runQueries(ifstream &infile)
+{
+	TextQuery tq(infile);
+	while(true)
+	{
+		cout<<"enter word to look for, or q to quit:";
+		string s;
+		if(!(cin>>s)||s=="q")
+			break;
+		print(cout,tq.query(s))<<endl;
+	}
+}
+int main(int argc,char *argv[])
+{
+	ifstream infile(argv[1]);
+	runQueries(infile);
+	return 0;
+}
+```
+==TextQuery.h==
+```
+#ifndef TEXT_QUERY_H
+#define TEXT_QUERY_H
+#include <string>
+#include <vector>
+#include <map>
+#include <set>
+#include <memory>
+#include <fstream>
+#include <iostream>
+#include <string>
+class TextQuery
+{
+public:
+	class QueryResult;
+	using line_no=std::vector<std::string>::size_type;
+	TextQuery(std::ifstream &);
+	QueryResult query(const std::string &) const;
+private:
+	std::shared_ptr<std::vector<std::string>> file;
+	std::map<std::string,std::shared_ptr<std::set<line_no>>> wm;
+};
+class TextQuery::QueryResult
+{
+	friend std::ostream &print(std::ostream &,const QueryResult &);
+	public:
+		QueryResult(std::string s,std::shared_ptr<std::set<std::vector<std::string>::size_type>> l,std::shared_ptr<std::vector<std::string>> f):sought(s),lines(l),file(f){}
+	private:
+		std::string sought;
+		std::shared_ptr<std::set<std::vector<std::string>::size_type>> lines;
+		std::shared_ptr<std::vector<std::string>> file;
+};
+std::ostream &print(std::ostream &,const TextQuery::QueryResult &);
+inline std::string make_plural(std::size_t count,const std::string &word,const std::string &ending)
+{
+	return (count>1)?word+ending:word;
+}
+#endif
+```
+==TextQuery.cpp==
+```
+#include <fstream>
+#include <iostream>
+#include <sstream>
+#include <vector>
+#include <set>
+#include <string>
+#include <memory>
+#include "TextQuery.h"
+using namespace std;
+TextQuery::TextQuery(ifstream &infile):file(new vector<string>)
+{
+	string text;
+	while(getline(infile,text))
+	{
+		file->push_back(text);
+		size_t line_number=file->size()-1;
+		istringstream line(text);
+		string word;
+		while(line>>word)
+		{
+			shared_ptr<set<line_no>> &lines=wm[word];
+			if(!lines)
+				lines.reset(new set<line_no>);
+			lines->insert(line_number);
+		}
+	}
+}
+TextQuery::QueryResult TextQuery::query(const string &sought) const
+{
+	static shared_ptr<set<line_no>> nodata(new set<line_no>);
+	map<string,shared_ptr<set<line_no>>>::const_iterator map_it=wm.find(sought);
+	if(map_it==wm.end())
+		return QueryResult(sought,nodata,file);
+	else
+		return QueryResult(sought,map_it->second,file);
+}
+
+std::ostream &print(std::ostream &os,const TextQuery::QueryResult &qr)
+{
+	os<<qr.sought<<" occurs "<<qr.lines->size()<<" "<<make_plural(qr.lines->size(),"time","s")<<std::endl;
+	for(auto num:*(qr.lines))
+		os<<"\t(line "<<num+1<<")"<<*(qr.file->begin()+num)<<std::endl;
+	return os;
+}
+```
