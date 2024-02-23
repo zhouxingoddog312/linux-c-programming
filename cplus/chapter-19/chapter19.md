@@ -1084,3 +1084,10 @@ int main(void)
 	return 0;
 }
 ```
+### 19.26
+```
+extern "C" int compute(int *,int);//这是一个C函数，它接受两个参数int *以及int，返回int
+extern "C" double compute(double *,double);//这是一个C函数，它接受两个参数double *以及double，返回double
+```
+不合法，因为C语言不支持函数重载，这两个函数的名字相同了。
+
