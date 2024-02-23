@@ -749,3 +749,338 @@ std::ostream &print(std::ostream &os,const TextQuery::QueryResult &qr)
 	return os;
 }
 ```
+### 19.21
+<a id="1">token.h</a>
+```
+#ifndef TOKEN_H
+#define TOKEN_H
+#include <string>
+#include <iostream>
+#include "Sales_data.h"
+using std::string;
+class Token
+{
+	friend std::ostream & operator<<(std::ostream &,const Token &);
+	public:
+		Token():tok(INT),ival(0) {}
+		Token(const Token &t):tok(t.tok) {copyUnion(t);}
+		Token(Token &&t):tok(std::move(t.tok)) {moveUnion(std::move(t));}
+		~Token()
+		{
+			if(tok==STR)
+				sval.~string();
+			else if(tok==SAL)
+				salval.~Sales_data();
+		}
+		Token & operator=(const Token &);
+		Token & operator=(Token &&);
+		Token & operator=(const std::string &);
+		Token & operator=(const Sales_data &);
+		Token & operator=(int);
+		Token & operator=(char);
+		Token & operator=(double);
+	private:
+		enum {INT,CHAR,DBL,STR,SAL} tok;
+		union
+		{
+			int ival;
+			char cval;
+			double dval;
+			std::string sval;
+			Sales_data salval;
+		};
+		void copyUnion(const Token &);
+		void moveUnion(Token &&);
+		void free()
+		{
+			if(tok==STR)
+				sval.~string();
+			if(tok==SAL)
+				salval.~Sales_data();
+		}
+};
+std::ostream & operator<<(std::ostream &,const Token &);
+#endif
+```
+==token.cpp==
+```
+#include "token.h"
+void Token::copyUnion(const Token &t)
+{
+	switch(tok)
+	{
+		case Token::INT:
+			ival=t.ival;
+			break;
+		case Token::CHAR:
+			cval=t.cval;
+			break;
+		case Token::DBL:
+			dval=t.dval;
+			break;
+		case Token::STR:
+			new (&sval) std::string(t.sval);
+			break;
+		case Token::SAL:
+			new (&salval) Sales_data(t.salval);
+			break;
+	}
+}
+void Token::moveUnion(Token &&t)
+{
+	switch(tok)
+	{
+		case Token::INT:
+			ival=t.ival;
+			break;
+		case Token::CHAR:
+			cval=t.cval;
+			break;
+		case Token::DBL:
+			dval=t.dval;
+			break;
+		case Token::STR:
+			new (&sval) std::string(std::move(t.sval));
+			break;
+		case Token::SAL:
+			new (&salval) Sales_data(std::move(t.salval));
+			break;
+	}
+}
+Token & Token::operator=(int i)
+{
+	if(tok==STR)
+		sval.~string();
+	if(tok==SAL)
+		salval.~Sales_data();
+	tok=INT;
+	ival=i;
+	return *this;
+}
+Token & Token::operator=(char ch)
+{
+	if(tok==STR)
+		sval.~string();
+	if(tok==SAL)
+		salval.~Sales_data();
+	tok=CHAR;
+	cval=ch;
+	return *this;
+}
+Token & Token::operator=(double d)
+{
+	if(tok==STR)
+		sval.~string();
+	if(tok==SAL)
+		salval.~Sales_data();
+	tok=DBL;
+	dval=d;
+	return *this;
+}
+Token & Token::operator=(const std::string &str)
+{
+	if(tok==STR)
+		sval=str;
+	else if(tok==SAL)
+	{
+		salval.~Sales_data();
+		tok=STR;
+		new (&sval) std::string(str);
+	}
+	else
+	{
+		tok=STR;
+		new (&sval) std::string(str);
+	}
+	return *this;
+}
+Token & Token::operator=(const Sales_data &sales)
+{
+	if(tok==SAL)
+		salval=sales;
+	else if(tok==STR)
+	{
+		sval.~string();
+		tok=SAL;
+		new (&salval) Sales_data(sales);
+	}
+	else
+	{
+		tok=SAL;
+		new (&salval) Sales_data(sales);
+	}
+	return *this;
+}
+Token & Token::operator=(const Token &t)
+{
+	switch(tok)
+	{
+		case Token::STR:
+			if(t.tok==STR)
+				sval=t.sval;
+			else
+			{
+				sval.~string();
+				tok=t.tok;
+				copyUnion(t);
+			}	
+			break;
+		case Token::SAL:
+			if(t.tok==SAL)
+				salval=t.salval;
+			else
+			{
+				salval.~Sales_data();
+				tok=t.tok;
+				copyUnion(t);
+			}
+			break;
+		default:
+			tok=t.tok;
+			copyUnion(t);
+	}
+	return *this;
+}
+Token & Token::operator=(Token &&t)
+{
+	if(this!=&t)
+	{
+		free();
+		tok=std::move(t.tok);
+		moveUnion(std::move(t));
+	}
+	return *this;
+}
+std::ostream & operator<<(std::ostream &os,const Token &t)
+{
+	switch(t.tok)
+	{
+		case Token::INT:
+			std::cout<<t.ival;
+			break;
+		case Token::CHAR:
+			std::cout<<t.cval;
+			break;
+		case Token::DBL:
+			std::cout<<t.dval;
+			break;
+		case Token::STR:
+			std::cout<<t.sval;
+			break;
+		case Token::SAL:
+			std::cout<<t.salval;
+			break;
+	}
+	return os;
+}
+```
+==Sales_data.h==
+```
+#include <iostream>
+#include <string>
+#include <stdexcept>
+class isbn_mismatch: public std::logic_error
+{
+public:
+	explicit isbn_mismatch(const std::string &s):std::logic_error(s) {}
+	isbn_mismatch(const std::string &s,const std::string &lhs,const std::string &rhs):std::logic_error(s),left(lhs),right(rhs) {}
+	const std::string left,right;
+};
+class Sales_data
+{
+	friend std::istream & operator>>(std::istream &,Sales_data &);
+	friend std::ostream & operator<<(std::ostream &,const Sales_data &);
+	friend Sales_data operator+(const Sales_data &,const Sales_data &);
+	public:
+		std::string isbn() const {return bookNo;}
+		Sales_data()=default;
+		Sales_data(const std::string &s):bookNo(s) {}
+		Sales_data(const std::string &s,unsigned n,double p):bookNo(s),units_sold(n),revenue(n*p) {}
+		Sales_data & operator+=(const Sales_data &);
+		operator std::string() const {return bookNo;}
+		operator double() const {return revenue;}
+		double avg_price() const;
+	private:
+		std::string bookNo;
+		unsigned units_sold=0;
+		double revenue=0.0;
+};
+std::istream & operator>>(std::istream &,Sales_data &);
+std::ostream & operator<<(std::ostream &,const Sales_data &);
+Sales_data operator+(const Sales_data &,const Sales_data &);
+bool compareIsbn(const Sales_data &lhs,const Sales_data &rhs);
+```
+==Sales_data.cpp==
+```
+#include "Sales_data.h"
+inline double Sales_data::avg_price() const
+{
+	if(units_sold)
+		return revenue/units_sold;
+	else
+		return 0;
+}
+std::istream & operator>>(std::istream &is,Sales_data &src)
+{
+	double price=0.0;
+	is>>src.bookNo>>src.units_sold>>price;
+	if(is)
+		src.revenue=src.units_sold*price;
+	else
+		src=Sales_data();
+	return is;
+}
+std::ostream & operator<<(std::ostream &os,const Sales_data &src)
+{
+	os<<src.isbn()<<" "<<src.units_sold<<" "<<src.revenue<<" "<<src.avg_price();
+	return os;
+}
+Sales_data & Sales_data::operator+=(const Sales_data & rhs)
+{
+	*this=*(this)+rhs;
+	return *this;
+}
+Sales_data operator+(const Sales_data &lhs,const Sales_data &rhs)
+{
+	Sales_data tmp;
+	if(lhs.isbn()!=rhs.isbn())
+		throw isbn_mismatch("wrong isbns!",lhs.isbn(),rhs.isbn());
+	tmp.bookNo=lhs.bookNo;
+	tmp.units_sold=lhs.units_sold+rhs.units_sold;
+	tmp.revenue=lhs.revenue+rhs.revenue;
+	return tmp;
+}
+bool compareIsbn(const Sales_data &lhs,const Sales_data &rhs)
+{
+	return lhs.isbn()<rhs.isbn();
+}
+```
+### 19.22
+[见19.21](#1)
+### 19.23
+[见19.21](#1)
+### 19.24
+不会出错
+### 19.25
+[见19.21](#1)
+==test.cpp==
+```
+#include <iostream>
+#include <string>
+#include "token.h"
+int main(void)
+{
+	Token t;
+	t=1;
+	std::cout<<t<<std::endl;
+	t='c';
+	std::cout<<t<<std::endl;
+	t=1.314;
+	std::cout<<t<<std::endl;
+	t="hello";
+	std::cout<<t<<std::endl;
+	t=Sales_data("10212x",3,24);
+	std::cout<<t<<std::endl;
+	return 0;
+}
+```
