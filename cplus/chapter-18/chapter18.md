@@ -1183,3 +1183,27 @@ int main(void)
 可行函数
 `void compute(const void *)`0能转换成任意指针类型
 ### 18.21
+1 正确,public继承CAD,private继承Vehicle
+2 错误，在一个派生列表中重复继承了同一个基类
+3 正确，public继承istream,public继承ostream
+### 18.22
+构造函数的执行顺序是A->B->C->X->Y->Z->MI
+### 18.23
+都允许
+### 18.24
+
+```
+ZooAnimal *pz=new Panda("ying_yang")
+pb->print();//调用Panda::print()
+pb->cuddle();//错误，不属于ZooAnimal的接口
+pb->highlight();//错误，不属于ZooAnimal的接口
+delete->pb;//正确，Panda::~Panda()
+```
+
+### 18.25
+1. MI::print()
+2. MI::print()
+3. MI::print()
+4. MI::~MI()
+5. MI::~MI()
+6. MI::~MI()
