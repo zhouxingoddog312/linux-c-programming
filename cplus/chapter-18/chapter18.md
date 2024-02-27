@@ -1207,3 +1207,142 @@ delete->pb;//正确，Panda::~Panda()
 4. MI::~MI()
 5. MI::~MI()
 6. MI::~MI()
+### 18.26
+因为派生类的名字将隐藏基类的同名成员，所以MI不加前缀限定符的print函数只有接受std::vector<double>参数的版本，而42无法隐式转换为该类型，所以调用失败。
+可以这样修改：
+```
+struct MI:public Derived,public Base2
+{
+        void print(std::vector<double>);
+        void print(int i)
+        {
+            Base1::print(i);
+        }
+    protected:
+        int *ival;
+        std::vector<double> dvec;
+}
+```
+### 18.26
+1. 所有可见的名字：
+```
+函数内：
+    int dval;
+    double cval;
+类内：
+    int *ival;
+    std::vector<double> dvec;
+    void print(std::vector<double>);
+Derived:
+    void Derived::print(std::string) const;
+    std::string sval;
+    double Derived::dval;
+Base1:
+    void Base1::print(int) const;
+    int Base1::ival;
+    double Base1::dval;
+    char Base1::cval;
+Base2:
+    void Base2::print(double) const;
+    int Base2::ival;
+    double fval;
+    char Base2::cval;
+全局作用域：
+    int ival;
+    double dval;
+``` 
+2. 
+```
+dval    cval    ival    print都是继承自多个基类。
+dval:Derived::dval  Base1::dval
+cval:Base1::cval    Base2::cval
+ival:Base1::ival    Base2::ival
+print:Derived::print    Base1::print    Base2::print
+```
+3.
+```
+void MI::foo(double cval)
+{
+    int dval;
+    dval=Base1::dval+Derived::dval;
+}
+```
+4.
+```
+void MI::foo(double cval)
+{
+    int dval;
+    Base2::fval=dvec.back();
+}
+```
+5.
+```
+void MI::foo(double cval)
+{
+    int dval;
+    sval[0]=Base1::cval;
+}
+```
+### 18.28
+无需前缀限定符：
+    Derived1::bar
+    Derived2::ival
+需要前缀限定符：
+    Derived1::foo
+    Derived2::foo
+    Base::bar
+    Base::ival
+    Derived1::cval
+    Derived2::cval
+### 18.29
+1. 
+构造函数顺序：Class()   Base()     D1()    D2()    MI() Class()    Final()
+析构函数顺序：Final()   Class()   MI()    D2()    D1()  Base()  Class()
+2. 1个base部分，两个Class部分。
+3.
+`pb=new Class`错误，不存在基类指针向派生类的隐式转换
+`pc=new Final`错误，Class接口的使用会导致二义性错误
+`pmi=pb`错误，不存在基类指针向派生类的隐式转换
+`pd2=pmi`正确
+### 18.30
+```
+这样定义的话，由于存在歧义，直接基类Class在Final中无法访问
+class Class{};
+class Base:public Class
+{
+	public:
+		Base()=default;
+		Base(const Base &b):i(b.i) {}
+		Base(const int &ri):i(ri) {}
+	private:
+		int i;
+};
+class D1:public virtual Base
+{
+	public:
+		D1()=default;
+		D1(const D1 &d):Base(d) {}
+		D1(const int &ri):Base(ri) {}
+};
+class D2:public virtual Base
+{
+	public:
+		D2()=default;
+		D2(const D2 &d):Base(d) {}
+		D2(const int &ri):Base(ri) {}
+};
+class MI:public D1,public D2
+{
+	public:
+		MI()=default;
+		MI(const MI &mi):Base(mi),D1(mi),D2(mi) {}
+		MI(const int &ri):Base(ri),D1(ri),D2(ri) {}
+};
+class Final:public MI,public Class
+{
+	public:
+		Final()=default;
+		Final(const Final &fi):Base(fi),MI(fi),Class() {}
+		Final(const int &ri):Base(ri),MI(ri),Class() {}
+};
+```
