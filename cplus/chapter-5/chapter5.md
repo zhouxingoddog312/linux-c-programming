@@ -395,3 +395,218 @@ int main()
 	return 0;
 }
 ```
+### 5.18
+1.
+读入两个整形变量并输出它们的和
+```
+do
+{
+    int v1,v2;
+    cout<<"Please enter two numbers to sum:";
+    if(cin>>v1>>v2)
+        cout<<"Sum is: "<<v1+v2<<endl;
+}
+while(cin);
+```
+2.
+条件部分使用的变量需要定义在循环体外。
+```
+int ival=get_response();
+do
+{
+//...
+}
+while(ival);
+```
+3.
+条件部分使用的变量需要定义在循环体外。
+```
+int ival=get_response();
+do
+{
+//...
+}
+while(ival);
+```
+### 5.19
+```
+#include <iostream>
+#include <string>
+using namespace std;
+int main()
+{
+	string str1,str2;
+	do
+	{
+		cout<<"Enter two string:";
+
+		if(cin>>str1>>str2)
+		{
+			if(str1.size()>str2.size())
+				cout<<str2<<endl;
+			else
+				cout<<str1<<endl;
+		}
+		else
+			break;
+	}
+	while(cin);
+	return 0;
+}
+```
+### 5.20
+```
+#include <iostream>
+#include <string>
+using namespace std;
+int main()
+{
+	bool flag(false);
+	string str1,str2;
+	if(cin>>str1)
+	{
+		while(cin>>str2)
+		{
+			if(str1==str2)
+			{
+				flag=true;
+				break;
+			}
+			else
+				str1=str2;
+		}
+	}
+	if(flag)
+		cout<<str1<<" is repeated."<<endl;
+	else
+		cout<<"No words repeated."<<endl;
+	return 0;
+}
+```
+### 5.21
+==5-21.cpp==
+```
+#include <iostream>
+#include <string>
+#include <cctype>
+using namespace std;
+int main()
+{
+	bool flag(false);
+	string str1,str2;
+	if(cin>>str1)
+	{
+		while(cin>>str2)
+		{
+			if(str1==str2&&isupper(str1[0]))
+			{
+				flag=true;
+				break;
+			}
+			else
+				str1=str2;
+		}
+	}
+	if(flag)
+		cout<<str1<<" is repeated."<<endl;
+	else
+		cout<<"No words repeated."<<endl;
+	return 0;
+}
+```
+==5-21-1.cpp==
+```
+#include <iostream>
+#include <string>
+#include <cctype>
+using namespace std;
+int main()
+{
+	bool flag(false);
+	string str1,str2;
+	if(cin>>str1)
+	{
+		while(cin>>str2)
+		{
+			if(!isupper(str1[0]))
+			{
+				str1=str2;
+				continue;
+			}
+			else if(str1==str2)
+			{
+				flag=true;
+				break;
+			}
+			str1=str2;
+		}
+	}
+	if(flag)
+		cout<<str1<<" is repeated."<<endl;
+	else
+		cout<<"No words repeated."<<endl;
+	return 0;
+}
+```
+### 5.22
+```
+int sz;
+while((sz=getsize())<=0)
+    ;
+```
+### 5.23
+```
+#include <iostream>
+using namespace std;
+int main()
+{
+	int i_1,i_2;
+	cout<<"Enter two integer:";
+	cin>>i_1>>i_2;
+	cout<<i_1/i_2<<endl;
+	return 0;
+}
+```
+### 5.24
+```
+#include <iostream>
+using namespace std;
+int main()
+{
+	int i_1,i_2;
+		cout<<"Enter two integer:";
+		cin>>i_1>>i_2;
+		if(i_2==0)
+			throw runtime_error("除数不能为0");
+		cout<<i_1/i_2<<endl;
+	return 0;
+}
+```
+### 5.25
+```
+#include <iostream>
+using namespace std;
+int main()
+{
+	int i_1,i_2;
+	cout<<"Enter two integer:";
+	while(cin>>i_1>>i_2)
+	{
+		try
+		{
+			if(i_2==0)
+				throw runtime_error("除数不能为0");
+			cout<<"The result is "<<i_1/i_2<<endl;
+		}
+		catch(runtime_error err)
+		{
+			cout<<err.what()<<"\nTry again?Enter y or n:";
+			char ch;
+			cin>>ch;
+			if(!cin||ch=='n')
+				break;
+		}
+	}
+	return 0;
+}
+```
