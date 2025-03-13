@@ -1,0 +1,3 @@
+/home/goddog312/workspace/cmake/chapter-1/1-2/build/CMakeFiles/hello_headers.dir
+/home/goddog312/workspace/cmake/chapter-1/1-2/build/CMakeFiles/edit_cache.dir
+/home/goddog312/workspace/cmake/chapter-1/1-2/build/CMakeFiles/rebuild_cache.dir
