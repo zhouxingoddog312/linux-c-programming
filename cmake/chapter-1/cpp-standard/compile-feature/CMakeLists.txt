@@ -1,0 +1,5 @@
+cmake_minimum_required(VERSION 3.5...3.10)
+project(compile-feature)
+add_executable(${PROJECT_NAME} main.cpp)
+target_compile_features(${PROJECT_NAME} PUBLIC cxx_auto_type)
+message("List of compile features:${CMAKE_CXX_COMPILE_FEATURES}")
