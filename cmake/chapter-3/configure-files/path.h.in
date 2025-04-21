@@ -1,0 +1,4 @@
+#ifndef _PATH_H_IN_
+#define _PATH_H_IN_
+const char *path="@CMAKE_SOURCE_DIR@";
+#endif

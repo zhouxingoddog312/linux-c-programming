@@ -1,0 +1,4 @@
+#ifndef _VER_H_IN_
+#define _VER_H_IN_
+const char *ver="${cf_example_VERSION}";
+#endif
